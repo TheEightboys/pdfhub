@@ -1,0 +1,391 @@
+/* ============================================
+   Dropzone - Clean Professional Design
+   Simple, Elegant, Functional
+   ============================================ */
+
+.dropzone-wrapper {
+    width: 100%;
+}
+
+/* Main Dropzone Container */
+.dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 40px 32px;
+    border: 2px dashed #d4d4d4;
+    border-radius: 16px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dropzone:hover {
+    border-color: #dc2626;
+    background: #fef7f7;
+}
+
+.dropzone-active {
+    border-color: #dc2626 !important;
+    border-style: solid !important;
+    background: #fef2f2 !important;
+}
+
+.dropzone-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+[data-theme="dark"] .dropzone {
+    background: #1e1e1e;
+    border-color: #3a3a3a;
+}
+
+[data-theme="dark"] .dropzone:hover {
+    border-color: #ef4444;
+    background: #262626;
+}
+
+[data-theme="dark"] .dropzone-active {
+    background: #2d2020 !important;
+}
+
+/* Hide native file input */
+.dropzone-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Content */
+.dropzone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+}
+
+/* PDF Icon */
+.dropzone-pdf-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: #fee2e2;
+    border-radius: 14px;
+    color: #dc2626;
+    margin-bottom: 4px;
+}
+
+[data-theme="dark"] .dropzone-pdf-icon {
+    background: #3b2020;
+    color: #f87171;
+}
+
+/* Main Button */
+.dropzone-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 32px;
+    background: #dc2626;
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+}
+
+.dropzone-button * {
+    color: #ffffff !important;
+}
+
+.dropzone-button svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+}
+
+.dropzone-button span {
+    color: #ffffff !important;
+}
+
+.dropzone-button:hover {
+    background: #b91c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.dropzone-button:active {
+    transform: translateY(0);
+}
+
+/* Hint Text */
+.dropzone-hint {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+[data-theme="dark"] .dropzone-hint {
+    color: #6b7280;
+}
+
+/* Loading State */
+.dropzone-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.dropzone-scanning-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: #fee2e2;
+    border-radius: 12px;
+    color: #dc2626;
+}
+
+[data-theme="dark"] .dropzone-scanning-icon {
+    background: #2a1515;
+    color: #f87171;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.85;
+    }
+}
+
+.loading-spinner {
+    color: #dc2626;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    animation: pulseText 2s ease-in-out infinite;
+}
+
+@keyframes pulseText {
+
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+[data-theme="dark"] .loading-text {
+    color: #d1d5db;
+}
+
+.loading-bar {
+    width: 240px;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+[data-theme="dark"] .loading-bar {
+    background: #374151;
+}
+
+.loading-fill {
+    height: 100%;
+    background: #dc2626;
+    border-radius: 3px;
+    transition: width 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated shine effect */
+.loading-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.4) 50%,
+            transparent 100%);
+    animation: shineEffect 1.5s ease-in-out infinite;
+}
+
+@keyframes shineEffect {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.loading-percent {
+    font-size: 14px;
+    font-weight: 700;
+    color: #dc2626;
+    animation: pulsePercent 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulsePercent {
+    0% {
+        transform: scale(1);
+    }
+
+    100% {
+        transform: scale(1.05);
+    }
+}
+
+[data-theme="dark"] .loading-percent {
+    color: #f87171;
+}
+
+/* Results */
+.dropzone-results {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dropzone-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropzone-result.valid {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.dropzone-result.invalid {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+[data-theme="dark"] .dropzone-result.valid {
+    background: rgba(34, 197, 94, 0.15);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="dark"] .dropzone-result.invalid {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.result-error {
+    margin-left: auto;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dropzone {
+        padding: 36px 24px;
+        min-height: 180px;
+    }
+
+    .dropzone-pdf-icon {
+        width: 64px;
+        height: 64px;
+    }
+
+    .dropzone-button {
+        padding: 14px 32px;
+        font-size: 15px;
+    }
+
+    .dropzone-hint {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .dropzone {
+        padding: 28px 20px;
+    }
+
+    .dropzone-pdf-icon {
+        width: 56px;
+        height: 56px;
+    }
+
+    .dropzone-button {
+        padding: 12px 28px;
+        font-size: 14px;
+    }
+}
