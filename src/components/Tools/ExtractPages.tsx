@@ -1,95 +1,69 @@
 /**
- * Extract Pages Tool
+ * Extract Pages Tool - Optimized for large PDFs
  * Extract specific pages from a PDF
  */
 
-import { useState, useEffect } from 'react';
-import { useApp } from '../../store/appStore';
+import { useState, useEffect, useCallback } from 'react';
+import { useApp, useToast } from '../../store/appStore';
 import { FileOutput, Check, Download, Loader2 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { generateThumbnail } from '../../utils/imageHelpers';
+import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
+// Lightweight placeholder - no PDF rendering
+const getPlaceholder = (pageNum: number) =>
+    `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
+            <rect fill="#f1f5f9" width="80" height="110" rx="4"/>
+            <rect fill="#e2e8f0" x="8" y="8" width="64" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="15" width="48" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="22" width="56" height="3" rx="1"/>
+            <text x="40" y="65" text-anchor="middle" fill="#64748b" font-size="16" font-weight="bold" font-family="Arial">${pageNum}</text>
+        </svg>
+    `)}`;
+
 export function ExtractPagesTool() {
-    const { state } = useApp();
+    const { state, setLoading } = useApp();
+    const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [selectedPages, setSelectedPages] = useState<number[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
-    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
 
-    // Generate real thumbnails
+    // Reset when document changes
     useEffect(() => {
-        if (activeDocument) {
-            setIsLoadingThumbnails(true);
-            const generateThumbs = async () => {
-                const thumbs: string[] = [];
-                const bufferClone = activeDocument.arrayBuffer.slice(0);
+        setSelectedPages([]);
+        setIsComplete(false);
+    }, [activeDocument?.id]);
 
-                // Generate thumbnails for all pages (limit to first 20 for performance)
-                const pagesToRender = Math.min(activeDocument.pageCount, 20);
-
-                for (let i = 1; i <= pagesToRender; i++) {
-                    try {
-                        const thumb = await generateThumbnail(bufferClone, i, 120);
-                        thumbs.push(thumb);
-                    } catch (err) {
-                        // Fallback to placeholder on error
-                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                                <rect fill="#f8fafc" width="100" height="140"/>
-                                <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
-                                <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
-                                <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
-                            </svg>
-                        `)}`);
-                    }
-                }
-
-                // For remaining pages, add placeholders
-                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
-                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                            <rect fill="#f8fafc" width="100" height="140"/>
-                            <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
-                            <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
-                            <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
-                        </svg>
-                    `)}`);
-                }
-
-                setThumbnails(thumbs);
-                setIsLoadingThumbnails(false);
-            };
-
-            generateThumbs();
-        }
-    }, [activeDocument]);
-
-    const togglePage = (pageNum: number) => {
+    const togglePage = useCallback((pageNum: number) => {
         setSelectedPages(prev =>
             prev.includes(pageNum)
                 ? prev.filter(p => p !== pageNum)
                 : [...prev, pageNum].sort((a, b) => a - b)
         );
-    };
+    }, []);
 
-    const selectAll = () => {
-        if (activeDocument) {
-            setSelectedPages(Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1));
-        }
-    };
+    const selectAll = useCallback(() => {
+        if (!activeDocument) return;
+        setSelectedPages(Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1));
+    }, [activeDocument]);
 
-    const selectNone = () => {
+    const deselectAll = useCallback(() => {
         setSelectedPages([]);
-    };
+    }, []);
+
+    const selectRange = useCallback((start: number, end: number) => {
+        const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+        setSelectedPages(prev => [...new Set([...prev, ...pages])].sort((a, b) => a - b));
+    }, []);
 
     const handleExtract = async () => {
         if (!activeDocument || selectedPages.length === 0) return;
 
         setIsProcessing(true);
+        setLoading(true, 'Extracting pages...');
 
         try {
             // Load the PDF
@@ -102,24 +76,27 @@ export function ExtractPagesTool() {
                 newPdf.addPage(copiedPage);
             }
 
-            // Save the new PDF
             const pdfBytes = await newPdf.save();
-            const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-
-            // Download
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `extracted-pages-${activeDocument.name}`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const fileName = activeDocument.name.replace('.pdf', '_extracted.pdf');
+            downloadPDF(pdfBytes, fileName);
 
             setIsComplete(true);
+            addToast({
+                type: 'success',
+                title: 'Pages extracted!',
+                message: `${selectedPages.length} pages saved to ${fileName}`,
+            });
         } catch (error) {
-            console.error('Error extracting pages:', error);
+            console.error('Extraction failed:', error);
+            addToast({
+                type: 'error',
+                title: 'Extraction failed',
+                message: 'An error occurred while extracting pages.',
+            });
+        } finally {
+            setIsProcessing(false);
+            setLoading(false);
         }
-
-        setIsProcessing(false);
     };
 
     if (!activeDocument) {
@@ -150,16 +127,6 @@ export function ExtractPagesTool() {
                         </div>
                         <h3>Extraction Complete!</h3>
                         <p>{selectedPages.length} pages have been extracted and downloaded.</p>
-                        <div className="success-details">
-                            <div className="detail-item">
-                                <span className="detail-label">Pages Extracted</span>
-                                <span className="detail-value">{selectedPages.length}</span>
-                            </div>
-                            <div className="detail-item">
-                                <span className="detail-label">Source</span>
-                                <span className="detail-value">{activeDocument.name}</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div className="tool-footer">
@@ -170,7 +137,7 @@ export function ExtractPagesTool() {
                             setSelectedPages([]);
                         }}
                     >
-                        Extract More Pages
+                        Extract More
                     </button>
                 </div>
             </div>
@@ -182,35 +149,43 @@ export function ExtractPagesTool() {
             <div className="tool-header">
                 <h2 className="tool-title">Extract Pages</h2>
                 <p className="tool-description">
-                    Select pages to extract into a new PDF
+                    Select pages to save as a new PDF file
                 </p>
             </div>
 
             <div className="tool-content">
                 {/* Quick Actions */}
                 <div className="tool-section">
-                    <div className="section-header">
-                        <h3 className="section-title">Select Pages</h3>
-                        <div className="section-actions">
-                            <button className="btn btn-sm btn-ghost" onClick={selectAll}>
-                                Select All
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={selectNone}>
-                                Clear
-                            </button>
-                        </div>
+                    <div className="quick-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={selectAll}>
+                            Select All
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={deselectAll}>
+                            Deselect All
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => selectRange(1, 5)}>
+                            First 5
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => selectRange(activeDocument.pageCount - 4, activeDocument.pageCount)}>
+                            Last 5
+                        </button>
                     </div>
+                </div>
 
-                    {/* Page Grid */}
-                    <div className="page-grid">
-                        {thumbnails.map((thumb, index) => {
+                <div className="tool-section">
+                    <h3 className="section-title">
+                        Select Pages ({selectedPages.length} selected)
+                    </h3>
+
+                    <div className="page-grid page-grid-compact">
+                        {Array.from({ length: activeDocument.pageCount }, (_, index) => {
                             const pageNum = index + 1;
                             const isSelected = selectedPages.includes(pageNum);
 
                             return (
                                 <div
                                     key={pageNum}
-                                    className={`page-grid-item ${isSelected ? 'selected' : ''}`}
+                                    className={`page-grid-item compact selectable ${isSelected ? 'selected' : ''}`}
                                     onClick={() => togglePage(pageNum)}
                                 >
                                     {isSelected && (
@@ -218,8 +193,12 @@ export function ExtractPagesTool() {
                                             <Check size={14} />
                                         </div>
                                     )}
-                                    <div className="page-grid-thumb">
-                                        <img src={thumb} alt={`Page ${pageNum}`} />
+                                    <div className="page-grid-thumb compact">
+                                        <img
+                                            src={getPlaceholder(pageNum)}
+                                            alt={`Page ${pageNum}`}
+                                            loading="lazy"
+                                        />
                                     </div>
                                     <span className="page-grid-number">Page {pageNum}</span>
                                 </div>
@@ -232,7 +211,7 @@ export function ExtractPagesTool() {
             <div className="tool-footer">
                 <div className="tool-summary">
                     <span className="summary-stat">
-                        <strong>{selectedPages.length}</strong> of {activeDocument.pageCount} selected
+                        <strong>{selectedPages.length}</strong> of {activeDocument.pageCount} pages selected
                     </span>
                 </div>
                 <button
@@ -242,13 +221,13 @@ export function ExtractPagesTool() {
                 >
                     {isProcessing ? (
                         <>
-                            <Download size={18} className="animate-spin" />
+                            <Loader2 size={18} className="animate-spin" />
                             <span>Extracting...</span>
                         </>
                     ) : (
                         <>
-                            <FileOutput size={18} />
-                            <span>Extract {selectedPages.length} Pages</span>
+                            <Download size={18} />
+                            <span>Extract Pages</span>
                         </>
                     )}
                 </button>

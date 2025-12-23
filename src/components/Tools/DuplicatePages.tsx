@@ -1,88 +1,81 @@
 /**
- * Duplicate Pages Tool
+ * Duplicate Pages Tool - Optimized for large PDFs
  * Create copies of specific pages in a PDF
  */
 
-import { useState, useEffect } from 'react';
-import { useApp } from '../../store/appStore';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useApp, useToast } from '../../store/appStore';
 import { Copy, Check, Download, Plus, Minus, Loader2 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { generateThumbnail } from '../../utils/imageHelpers';
+import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
+// Simple page number based placeholder - no image generation
+const getPlaceholder = (pageNum: number) =>
+    `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
+            <rect fill="#f1f5f9" width="80" height="110" rx="4"/>
+            <rect fill="#e2e8f0" x="8" y="8" width="64" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="15" width="48" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="22" width="56" height="3" rx="1"/>
+            <text x="40" y="65" text-anchor="middle" fill="#64748b" font-size="16" font-weight="bold" font-family="Arial">${pageNum}</text>
+        </svg>
+    `)}`;
+
 export function DuplicatePagesTool() {
-    const { state } = useApp();
+    const { state, setLoading } = useApp();
+    const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [selectedPages, setSelectedPages] = useState<Map<number, number>>(new Map());
     const [isProcessing, setIsProcessing] = useState(false);
-    const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
-    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
+    const gridRef = useRef<HTMLDivElement>(null);
 
-    // Generate real thumbnails
+    // Reset when document changes
     useEffect(() => {
-        if (activeDocument) {
-            setIsLoadingThumbnails(true);
-            const generateThumbs = async () => {
-                const thumbs: string[] = [];
-                const bufferClone = activeDocument.arrayBuffer.slice(0);
-                const pagesToRender = Math.min(activeDocument.pageCount, 20);
+        setSelectedPages(new Map());
+        setIsComplete(false);
+    }, [activeDocument?.id]);
 
-                for (let i = 1; i <= pagesToRender; i++) {
-                    try {
-                        const thumb = await generateThumbnail(bufferClone, i, 120);
-                        thumbs.push(thumb);
-                    } catch (err) {
-                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                                <rect fill="#f8fafc" width="100" height="140"/>
-                                <text x="50" y="75" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
-                            </svg>
-                        `)}`);
-                    }
-                }
+    const setCopies = useCallback((pageNum: number, copies: number) => {
+        setSelectedPages(prev => {
+            const newSelected = new Map(prev);
+            if (copies <= 0) {
+                newSelected.delete(pageNum);
+            } else {
+                newSelected.set(pageNum, Math.min(copies, 10));
+            }
+            return newSelected;
+        });
+    }, []);
 
-                // Placeholders for remaining pages
-                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
-                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                            <rect fill="#f8fafc" width="100" height="140"/>
-                            <text x="50" y="75" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
-                        </svg>
-                    `)}`);
-                }
+    const getCopies = useCallback((pageNum: number) => selectedPages.get(pageNum) || 0, [selectedPages]);
 
-                setThumbnails(thumbs);
-                setIsLoadingThumbnails(false);
-            };
-
-            generateThumbs();
-        }
-    }, [activeDocument]);
-
-    const setCopies = (pageNum: number, copies: number) => {
-        const newSelected = new Map(selectedPages);
-        if (copies <= 0) {
-            newSelected.delete(pageNum);
-        } else {
-            newSelected.set(pageNum, Math.min(copies, 10));
-        }
-        setSelectedPages(newSelected);
-    };
-
-    const getCopies = (pageNum: number) => selectedPages.get(pageNum) || 0;
-
-    const getTotalNewPages = () => {
+    const getTotalNewPages = useCallback(() => {
         let total = 0;
         selectedPages.forEach(copies => total += copies);
         return total;
-    };
+    }, [selectedPages]);
+
+    const selectAll = useCallback(() => {
+        if (!activeDocument) return;
+        const newMap = new Map<number, number>();
+        for (let i = 1; i <= activeDocument.pageCount; i++) {
+            newMap.set(i, 1);
+        }
+        setSelectedPages(newMap);
+    }, [activeDocument]);
+
+    const clearAll = useCallback(() => {
+        setSelectedPages(new Map());
+    }, []);
 
     const handleDuplicate = async () => {
         if (!activeDocument || selectedPages.size === 0) return;
 
         setIsProcessing(true);
+        setLoading(true, 'Duplicating pages...');
 
         try {
             const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
@@ -102,21 +95,26 @@ export function DuplicatePagesTool() {
             }
 
             const pdfBytes = await newPdf.save();
-            const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `duplicated-${activeDocument.name}`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const fileName = activeDocument.name.replace('.pdf', '_duplicated.pdf');
+            downloadPDF(pdfBytes, fileName);
 
             setIsComplete(true);
+            addToast({
+                type: 'success',
+                title: 'Pages duplicated!',
+                message: `Created ${getTotalNewPages()} copies. Total pages: ${activeDocument.pageCount + getTotalNewPages()}`,
+            });
         } catch (error) {
             console.error('Error duplicating pages:', error);
+            addToast({
+                type: 'error',
+                title: 'Duplication failed',
+                message: 'An error occurred while duplicating pages.',
+            });
+        } finally {
+            setIsProcessing(false);
+            setLoading(false);
         }
-
-        setIsProcessing(false);
     };
 
     if (!activeDocument) {
@@ -184,11 +182,23 @@ export function DuplicatePagesTool() {
             </div>
 
             <div className="tool-content">
+                {/* Quick Actions */}
+                <div className="tool-section">
+                    <div className="quick-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={selectAll}>
+                            Select All (×1)
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={clearAll}>
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+
                 <div className="tool-section">
                     <h3 className="section-title">Select Pages to Duplicate</h3>
 
-                    <div className="page-grid">
-                        {thumbnails.map((thumb, index) => {
+                    <div className="page-grid page-grid-compact" ref={gridRef}>
+                        {Array.from({ length: activeDocument.pageCount }, (_, index) => {
                             const pageNum = index + 1;
                             const copies = getCopies(pageNum);
                             const isSelected = copies > 0;
@@ -196,31 +206,34 @@ export function DuplicatePagesTool() {
                             return (
                                 <div
                                     key={pageNum}
-                                    className={`page-grid-item ${isSelected ? 'selected' : ''}`}
+                                    className={`page-grid-item compact ${isSelected ? 'selected' : ''}`}
                                 >
                                     {isSelected && (
                                         <div className="page-grid-check">
-                                            <span style={{ fontSize: '12px', fontWeight: 700 }}>×{copies}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 700 }}>×{copies}</span>
                                         </div>
                                     )}
-                                    <div className="page-grid-thumb">
-                                        <img src={thumb} alt={`Page ${pageNum}`} />
+                                    <div className="page-grid-thumb compact">
+                                        <img
+                                            src={getPlaceholder(pageNum)}
+                                            alt={`Page ${pageNum}`}
+                                            loading="lazy"
+                                        />
                                     </div>
-                                    <span className="page-grid-number">Page {pageNum}</span>
-                                    <div className="duplicate-controls">
+                                    <div className="duplicate-controls compact">
                                         <button
                                             className="dup-btn"
                                             onClick={() => setCopies(pageNum, copies - 1)}
                                             disabled={copies === 0}
                                         >
-                                            <Minus size={14} />
+                                            <Minus size={12} />
                                         </button>
                                         <span className="dup-count">{copies}</span>
                                         <button
                                             className="dup-btn"
                                             onClick={() => setCopies(pageNum, copies + 1)}
                                         >
-                                            <Plus size={14} />
+                                            <Plus size={12} />
                                         </button>
                                     </div>
                                 </div>
@@ -247,7 +260,7 @@ export function DuplicatePagesTool() {
                 >
                     {isProcessing ? (
                         <>
-                            <Download size={18} className="animate-spin" />
+                            <Loader2 size={18} className="animate-spin" />
                             <span>Processing...</span>
                         </>
                     ) : (

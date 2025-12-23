@@ -1,71 +1,48 @@
 /**
- * Reorder Pages Tool
+ * Reorder Pages Tool - Optimized for large PDFs
  * Drag and drop to reorder pages in a PDF
  */
 
-import { useState, useEffect } from 'react';
-import { useApp } from '../../store/appStore';
-import { ArrowRightLeft, Check, Download, GripVertical, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useApp, useToast } from '../../store/appStore';
+import { ArrowRightLeft, Check, Download, ArrowUp, ArrowDown, Loader2, RotateCcw } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { generateThumbnail } from '../../utils/imageHelpers';
+import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
+// Lightweight placeholder - no PDF rendering
+const getPlaceholder = (pageNum: number) =>
+    `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="85" viewBox="0 0 60 85">
+            <rect fill="#f1f5f9" width="60" height="85" rx="3"/>
+            <rect fill="#e2e8f0" x="6" y="6" width="48" height="2" rx="1"/>
+            <rect fill="#e2e8f0" x="6" y="11" width="36" height="2" rx="1"/>
+            <rect fill="#e2e8f0" x="6" y="16" width="42" height="2" rx="1"/>
+            <text x="30" y="52" text-anchor="middle" fill="#64748b" font-size="14" font-weight="bold" font-family="Arial">${pageNum}</text>
+        </svg>
+    `)}`;
+
 export function ReorderPagesTool() {
-    const { state } = useApp();
+    const { state, setLoading } = useApp();
+    const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [pageOrder, setPageOrder] = useState<number[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
-    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
 
-    // Initialize page order and generate real thumbnails
+    // Initialize page order when document changes
     useEffect(() => {
         if (activeDocument) {
             const initialOrder = Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1);
             setPageOrder(initialOrder);
-
-            setIsLoadingThumbnails(true);
-            const generateThumbs = async () => {
-                const thumbs: string[] = [];
-                const bufferClone = activeDocument.arrayBuffer.slice(0);
-                const pagesToRender = Math.min(activeDocument.pageCount, 20);
-
-                for (let i = 1; i <= pagesToRender; i++) {
-                    try {
-                        const thumb = await generateThumbnail(bufferClone, i, 100);
-                        thumbs.push(thumb);
-                    } catch (err) {
-                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
-                                <rect fill="#f8fafc" width="80" height="110" rx="4"/>
-                                <text x="40" y="60" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="Arial">${i}</text>
-                            </svg>
-                        `)}`);
-                    }
-                }
-
-                // Placeholders for remaining pages
-                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
-                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
-                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
-                            <rect fill="#f8fafc" width="80" height="110" rx="4"/>
-                            <text x="40" y="60" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="Arial">${i}</text>
-                        </svg>
-                    `)}`);
-                }
-
-                setThumbnails(thumbs);
-                setIsLoadingThumbnails(false);
-            };
-
-            generateThumbs();
+            setHasChanges(false);
+            setIsComplete(false);
         }
-    }, [activeDocument]);
+    }, [activeDocument?.id]);
 
-    const movePage = (index: number, direction: 'up' | 'down') => {
+    const movePage = useCallback((index: number, direction: 'up' | 'down') => {
         const newOrder = [...pageOrder];
         const newIndex = direction === 'up' ? index - 1 : index + 1;
 
@@ -74,20 +51,35 @@ export function ReorderPagesTool() {
         [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
         setPageOrder(newOrder);
         setHasChanges(true);
-    };
+    }, [pageOrder]);
 
-    const resetOrder = () => {
-        if (activeDocument) {
-            const initialOrder = Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1);
-            setPageOrder(initialOrder);
-            setHasChanges(false);
-        }
-    };
+    const moveToPosition = useCallback((fromIndex: number, toIndex: number) => {
+        if (fromIndex === toIndex) return;
+
+        const newOrder = [...pageOrder];
+        const [moved] = newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, moved);
+        setPageOrder(newOrder);
+        setHasChanges(true);
+    }, [pageOrder]);
+
+    const resetOrder = useCallback(() => {
+        if (!activeDocument) return;
+        const initialOrder = Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1);
+        setPageOrder(initialOrder);
+        setHasChanges(false);
+    }, [activeDocument]);
+
+    const reverseOrder = useCallback(() => {
+        setPageOrder(prev => [...prev].reverse());
+        setHasChanges(true);
+    }, []);
 
     const handleReorder = async () => {
         if (!activeDocument || !hasChanges) return;
 
         setIsProcessing(true);
+        setLoading(true, 'Reordering pages...');
 
         try {
             const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
@@ -100,21 +92,26 @@ export function ReorderPagesTool() {
             }
 
             const pdfBytes = await newPdf.save();
-            const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `reordered-${activeDocument.name}`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const fileName = activeDocument.name.replace('.pdf', '_reordered.pdf');
+            downloadPDF(pdfBytes, fileName);
 
             setIsComplete(true);
+            addToast({
+                type: 'success',
+                title: 'Pages reordered!',
+                message: `Saved as ${fileName}`,
+            });
         } catch (error) {
-            console.error('Error reordering pages:', error);
+            console.error('Reorder failed:', error);
+            addToast({
+                type: 'error',
+                title: 'Reorder failed',
+                message: 'An error occurred while reordering pages.',
+            });
+        } finally {
+            setIsProcessing(false);
+            setLoading(false);
         }
-
-        setIsProcessing(false);
     };
 
     if (!activeDocument) {
@@ -144,7 +141,7 @@ export function ReorderPagesTool() {
                             <Check size={48} />
                         </div>
                         <h3>Reorder Complete!</h3>
-                        <p>Your PDF has been reordered and downloaded.</p>
+                        <p>Your PDF has been saved with the new page order.</p>
                     </div>
                 </div>
                 <div className="tool-footer">
@@ -152,7 +149,7 @@ export function ReorderPagesTool() {
                         className="btn btn-secondary"
                         onClick={() => {
                             setIsComplete(false);
-                            resetOrder();
+                            setHasChanges(false);
                         }}
                     >
                         Reorder Again
@@ -167,49 +164,56 @@ export function ReorderPagesTool() {
             <div className="tool-header">
                 <h2 className="tool-title">Reorder Pages</h2>
                 <p className="tool-description">
-                    Use the arrows to move pages up or down
+                    Use arrows to move pages up or down
                 </p>
             </div>
 
             <div className="tool-content">
+                {/* Quick Actions */}
                 <div className="tool-section">
-                    <div className="section-header">
-                        <h3 className="section-title">Page Order</h3>
-                        {hasChanges && (
-                            <button className="btn btn-sm btn-ghost" onClick={resetOrder}>
-                                Reset
-                            </button>
-                        )}
+                    <div className="quick-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={reverseOrder}>
+                            <RotateCcw size={14} />
+                            Reverse Order
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={resetOrder} disabled={!hasChanges}>
+                            Reset
+                        </button>
                     </div>
+                </div>
+
+                <div className="tool-section">
+                    <h3 className="section-title">Page Order</h3>
 
                     <div className="reorder-list">
-                        {pageOrder.map((pageNum, index) => (
-                            <div key={`${pageNum}-${index}`} className="reorder-item">
-                                <div className="reorder-grip">
-                                    <GripVertical size={16} />
-                                </div>
-                                <div className="reorder-position">{index + 1}</div>
+                        {pageOrder.map((originalPageNum, index) => (
+                            <div key={`${originalPageNum}-${index}`} className="reorder-item">
+                                <span className="reorder-position">{index + 1}</span>
                                 <div className="reorder-thumb">
-                                    <img src={thumbnails[pageNum - 1]} alt={`Page ${pageNum}`} />
+                                    <img
+                                        src={getPlaceholder(originalPageNum)}
+                                        alt={`Page ${originalPageNum}`}
+                                        loading="lazy"
+                                    />
                                 </div>
                                 <div className="reorder-info">
-                                    <span className="reorder-label">Page {pageNum}</span>
-                                    {pageNum !== index + 1 && (
+                                    <span className="reorder-page">Page {originalPageNum}</span>
+                                    {originalPageNum !== index + 1 && (
                                         <span className="reorder-moved">
-                                            was #{pageNum}
+                                            (was {originalPageNum})
                                         </span>
                                     )}
                                 </div>
                                 <div className="reorder-actions">
                                     <button
-                                        className="reorder-btn"
+                                        className="btn btn-ghost btn-sm btn-icon"
                                         onClick={() => movePage(index, 'up')}
                                         disabled={index === 0}
                                     >
                                         <ArrowUp size={16} />
                                     </button>
                                     <button
-                                        className="reorder-btn"
+                                        className="btn btn-ghost btn-sm btn-icon"
                                         onClick={() => movePage(index, 'down')}
                                         disabled={index === pageOrder.length - 1}
                                     >
@@ -225,12 +229,16 @@ export function ReorderPagesTool() {
             <div className="tool-footer">
                 <div className="tool-summary">
                     <span className="summary-stat">
-                        {hasChanges ? (
-                            <span className="summary-stat changed">Order changed</span>
-                        ) : (
-                            <span>{activeDocument.pageCount} pages</span>
-                        )}
+                        <strong>{activeDocument.pageCount}</strong> pages
                     </span>
+                    {hasChanges && (
+                        <>
+                            <span className="summary-divider">•</span>
+                            <span className="summary-stat changed">
+                                Order changed
+                            </span>
+                        </>
+                    )}
                 </div>
                 <button
                     className="btn btn-primary"
@@ -239,13 +247,13 @@ export function ReorderPagesTool() {
                 >
                     {isProcessing ? (
                         <>
-                            <Download size={18} className="animate-spin" />
-                            <span>Processing...</span>
+                            <Loader2 size={18} className="animate-spin" />
+                            <span>Saving...</span>
                         </>
                     ) : (
                         <>
-                            <ArrowRightLeft size={18} />
-                            <span>Apply New Order</span>
+                            <Download size={18} />
+                            <span>Save Reordered PDF</span>
                         </>
                     )}
                 </button>
