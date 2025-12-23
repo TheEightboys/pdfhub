@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { useApp } from '../../store/appStore';
-import { Copy, Check, Download, Plus, Minus } from 'lucide-react';
+import { Copy, Check, Download, Plus, Minus, Loader2 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { generateThumbnail } from '../../utils/imageHelpers';
 import './Tools.css';
 
 export function DuplicatePagesTool() {
@@ -17,22 +18,46 @@ export function DuplicatePagesTool() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
+    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
 
-    // Generate thumbnails
+    // Generate real thumbnails
     useEffect(() => {
         if (activeDocument) {
-            const thumbs = Array.from({ length: activeDocument.pageCount }, (_, i) =>
-                `data:image/svg+xml,${encodeURIComponent(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                        <rect fill="#f8fafc" width="100" height="140"/>
-                        <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="30" width="70" height="4" rx="2"/>
-                        <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i + 1}</text>
-                    </svg>
-                `)}`
-            );
-            setThumbnails(thumbs);
+            setIsLoadingThumbnails(true);
+            const generateThumbs = async () => {
+                const thumbs: string[] = [];
+                const bufferClone = activeDocument.arrayBuffer.slice(0);
+                const pagesToRender = Math.min(activeDocument.pageCount, 20);
+
+                for (let i = 1; i <= pagesToRender; i++) {
+                    try {
+                        const thumb = await generateThumbnail(bufferClone, i, 120);
+                        thumbs.push(thumb);
+                    } catch (err) {
+                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
+                                <rect fill="#f8fafc" width="100" height="140"/>
+                                <text x="50" y="75" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
+                            </svg>
+                        `)}`);
+                    }
+                }
+
+                // Placeholders for remaining pages
+                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
+                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
+                            <rect fill="#f8fafc" width="100" height="140"/>
+                            <text x="50" y="75" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
+                        </svg>
+                    `)}`);
+                }
+
+                setThumbnails(thumbs);
+                setIsLoadingThumbnails(false);
+            };
+
+            generateThumbs();
         }
     }, [activeDocument]);
 

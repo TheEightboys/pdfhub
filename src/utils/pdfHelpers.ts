@@ -195,29 +195,102 @@ export async function duplicatePages(
 }
 
 /**
- * Compress PDF (basic compression by modifying save options)
+ * Compress PDF with actual image recompression
+ * Renders pages to canvas and creates new PDF with compressed images
  */
 export async function compressPDF(
     arrayBuffer: ArrayBuffer,
     options: CompressionOptions
 ): Promise<Uint8Array> {
-    const pdf = await PDFLibDocument.load(arrayBuffer, { ignoreEncryption: true });
+    // Import pdfjs dynamically
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+    // Determine quality and scale based on compression level
+    let imageQuality: number;
+    let scale: number;
+
+    switch (options.level) {
+        case 'low':
+            imageQuality = 0.9;
+            scale = 1.0;
+            break;
+        case 'medium':
+            imageQuality = 0.75;
+            scale = 0.85;
+            break;
+        case 'high':
+            imageQuality = 0.6;
+            scale = 0.75;
+            break;
+        case 'extreme':
+            imageQuality = 0.4;
+            scale = 0.6;
+            break;
+        default:
+            imageQuality = 0.75;
+            scale = 0.85;
+    }
+
+    // Load the source PDF
+    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdfDoc.numPages;
+
+    // Create a new PDF
+    const newPdf = await PDFLibDocument.create();
+
+    // Process each page
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const viewport = page.getViewport({ scale });
+
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d')!;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        // Render page to canvas
+        await page.render({
+            canvasContext: context,
+            viewport: viewport,
+        }).promise;
+
+        // Convert canvas to JPEG with compression
+        const imageDataUrl = canvas.toDataURL('image/jpeg', imageQuality);
+
+        // Extract base64 data
+        const base64Data = imageDataUrl.split(',')[1];
+        const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+        // Embed image in new PDF
+        const jpgImage = await newPdf.embedJpg(imageBytes);
+
+        // Add page with original dimensions (not scaled)
+        const originalViewport = page.getViewport({ scale: 1 });
+        const newPage = newPdf.addPage([originalViewport.width, originalViewport.height]);
+
+        // Draw image to fill the page
+        newPage.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: originalViewport.width,
+            height: originalViewport.height,
+        });
+    }
 
     // Remove metadata if requested
     if (options.removeMetadata) {
-        pdf.setTitle('');
-        pdf.setAuthor('');
-        pdf.setSubject('');
-        pdf.setKeywords([]);
-        pdf.setCreator('');
-        pdf.setProducer('');
+        newPdf.setTitle('');
+        newPdf.setAuthor('');
+        newPdf.setSubject('');
+        newPdf.setKeywords([]);
+        newPdf.setCreator('');
+        newPdf.setProducer('');
     }
 
-    // Note: pdf-lib doesn't support true image recompression
-    // For real compression, you'd need to use a library like pdfcompressor or server-side processing
-    // This provides basic compression through object stream optimization
-
-    return pdf.save({
+    // Save with object streams for additional compression
+    return newPdf.save({
         useObjectStreams: true,
         addDefaultPage: false,
     });

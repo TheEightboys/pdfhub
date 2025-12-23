@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { useApp } from '../../store/appStore';
-import { FileOutput, Check, Download } from 'lucide-react';
+import { FileOutput, Check, Download, Loader2 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { generateThumbnail } from '../../utils/imageHelpers';
 import './Tools.css';
 
 export function ExtractPagesTool() {
@@ -17,26 +18,53 @@ export function ExtractPagesTool() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
+    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
 
-    // Generate thumbnails
+    // Generate real thumbnails
     useEffect(() => {
         if (activeDocument) {
-            // Generate placeholder thumbnails
-            const thumbs = Array.from({ length: activeDocument.pageCount }, (_, i) =>
-                `data:image/svg+xml,${encodeURIComponent(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
-                        <rect fill="#f8fafc" width="100" height="140"/>
-                        <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="30" width="70" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="45" width="80" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="55" width="50" height="4" rx="2"/>
-                        <rect fill="#e2e8f0" x="10" y="65" width="75" height="4" rx="2"/>
-                        <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i + 1}</text>
-                    </svg>
-                `)}`
-            );
-            setThumbnails(thumbs);
+            setIsLoadingThumbnails(true);
+            const generateThumbs = async () => {
+                const thumbs: string[] = [];
+                const bufferClone = activeDocument.arrayBuffer.slice(0);
+
+                // Generate thumbnails for all pages (limit to first 20 for performance)
+                const pagesToRender = Math.min(activeDocument.pageCount, 20);
+
+                for (let i = 1; i <= pagesToRender; i++) {
+                    try {
+                        const thumb = await generateThumbnail(bufferClone, i, 120);
+                        thumbs.push(thumb);
+                    } catch (err) {
+                        // Fallback to placeholder on error
+                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
+                                <rect fill="#f8fafc" width="100" height="140"/>
+                                <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
+                                <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
+                                <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
+                            </svg>
+                        `)}`);
+                    }
+                }
+
+                // For remaining pages, add placeholders
+                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
+                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="140" viewBox="0 0 100 140">
+                            <rect fill="#f8fafc" width="100" height="140"/>
+                            <rect fill="#e2e8f0" x="10" y="10" width="80" height="4" rx="2"/>
+                            <rect fill="#e2e8f0" x="10" y="20" width="60" height="4" rx="2"/>
+                            <text x="50" y="120" text-anchor="middle" fill="#94a3b8" font-size="14" font-family="Arial">Page ${i}</text>
+                        </svg>
+                    `)}`);
+                }
+
+                setThumbnails(thumbs);
+                setIsLoadingThumbnails(false);
+            };
+
+            generateThumbs();
         }
     }, [activeDocument]);
 

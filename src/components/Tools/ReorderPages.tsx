@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { useApp } from '../../store/appStore';
-import { ArrowRightLeft, Check, Download, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowRightLeft, Check, Download, GripVertical, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
+import { generateThumbnail } from '../../utils/imageHelpers';
 import './Tools.css';
 
 export function ReorderPagesTool() {
@@ -18,27 +19,49 @@ export function ReorderPagesTool() {
     const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [isComplete, setIsComplete] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [isLoadingThumbnails, setIsLoadingThumbnails] = useState(false);
 
-    // Initialize page order and thumbnails
+    // Initialize page order and generate real thumbnails
     useEffect(() => {
         if (activeDocument) {
             const initialOrder = Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1);
             setPageOrder(initialOrder);
 
-            const thumbs = Array.from({ length: activeDocument.pageCount }, (_, i) =>
-                `data:image/svg+xml,${encodeURIComponent(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
-                        <rect fill="#f8fafc" width="80" height="110" rx="4"/>
-                        <rect fill="#e2e8f0" x="8" y="8" width="64" height="3" rx="1"/>
-                        <rect fill="#e2e8f0" x="8" y="15" width="48" height="3" rx="1"/>
-                        <rect fill="#e2e8f0" x="8" y="22" width="56" height="3" rx="1"/>
-                        <rect fill="#e2e8f0" x="8" y="32" width="64" height="3" rx="1"/>
-                        <rect fill="#e2e8f0" x="8" y="39" width="40" height="3" rx="1"/>
-                        <text x="40" y="95" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="Arial">${i + 1}</text>
-                    </svg>
-                `)}`
-            );
-            setThumbnails(thumbs);
+            setIsLoadingThumbnails(true);
+            const generateThumbs = async () => {
+                const thumbs: string[] = [];
+                const bufferClone = activeDocument.arrayBuffer.slice(0);
+                const pagesToRender = Math.min(activeDocument.pageCount, 20);
+
+                for (let i = 1; i <= pagesToRender; i++) {
+                    try {
+                        const thumb = await generateThumbnail(bufferClone, i, 100);
+                        thumbs.push(thumb);
+                    } catch (err) {
+                        thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
+                                <rect fill="#f8fafc" width="80" height="110" rx="4"/>
+                                <text x="40" y="60" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="Arial">${i}</text>
+                            </svg>
+                        `)}`);
+                    }
+                }
+
+                // Placeholders for remaining pages
+                for (let i = pagesToRender + 1; i <= activeDocument.pageCount; i++) {
+                    thumbs.push(`data:image/svg+xml,${encodeURIComponent(`
+                        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="110" viewBox="0 0 80 110">
+                            <rect fill="#f8fafc" width="80" height="110" rx="4"/>
+                            <text x="40" y="60" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="Arial">${i}</text>
+                        </svg>
+                    `)}`);
+                }
+
+                setThumbnails(thumbs);
+                setIsLoadingThumbnails(false);
+            };
+
+            generateThumbs();
         }
     }, [activeDocument]);
 
