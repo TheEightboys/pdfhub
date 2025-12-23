@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
-import { AppState, AppAction, PDFDocument, ToolId, Annotation } from '../types';
+import { AppState, AppAction, PDFDocument, ToolId, Annotation, PreviewState } from '../types';
 
 // Initial state
 const initialState: AppState = {
@@ -15,9 +15,20 @@ const initialState: AppState = {
     documents: [],
     selectedPages: [],
     zoom: 100,
-    viewMode: 'single',
+    viewMode: 'continuous',
     isLoading: false,
     loadingMessage: undefined,
+    previewState: null,
+    user: null,
+    toolOptions: {
+        drawColor: '#000000',
+        drawWidth: 3,
+        noteColor: '#fef08a',
+        shapeType: 'rectangle',
+        shapeStrokeColor: '#000000',
+        shapeFillColor: 'transparent',
+        shapeStrokeWidth: 2,
+    },
 };
 
 // Reducer
@@ -79,6 +90,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 loadingMessage: action.payload.message,
             };
 
+        case 'SET_PREVIEW_STATE':
+            return {
+                ...state,
+                previewState: action.payload,
+            };
+
         case 'ADD_ANNOTATION':
             if (!state.activeDocument) return state;
             const pageIndex = action.payload.pageNumber - 1;
@@ -122,6 +139,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 },
             };
 
+        case 'LOGIN':
+            return { ...state, user: action.payload };
+
+        case 'LOGOUT':
+            return { ...state, user: null };
+
+        case 'SET_TOOL_OPTIONS':
+            return {
+                ...state,
+                toolOptions: { ...state.toolOptions, ...action.payload },
+            };
+
         default:
             return state;
     }
@@ -151,6 +180,10 @@ interface AppContextType {
     addAnnotation: (annotation: Annotation) => void;
     updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
     deleteAnnotation: (id: string) => void;
+    setPreviewState: (state: PreviewState | null) => void;
+    login: (user: import('../types').User) => void;
+    logout: () => void;
+    setToolOptions: (options: Partial<import('../types').ToolOptions>) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -247,6 +280,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'DELETE_ANNOTATION', payload: id });
     }, []);
 
+    const setPreviewState = useCallback((preview: PreviewState | null) => {
+        dispatch({ type: 'SET_PREVIEW_STATE', payload: preview });
+    }, []);
+
+    const login = useCallback((user: import('../types').User) => {
+        dispatch({ type: 'LOGIN', payload: user });
+    }, []);
+
+    const logout = useCallback(() => {
+        dispatch({ type: 'LOGOUT' });
+    }, []);
+
+    const setToolOptions = useCallback((options: Partial<import('../types').ToolOptions>) => {
+        dispatch({ type: 'SET_TOOL_OPTIONS', payload: options });
+    }, []);
+
     const value: AppContextType = {
         state,
         dispatch,
@@ -269,6 +318,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addAnnotation,
         updateAnnotation,
         deleteAnnotation,
+        setPreviewState,
+        login,
+        logout,
+        setToolOptions,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

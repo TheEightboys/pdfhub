@@ -42,7 +42,6 @@ const TOOLS: Tool[] = [
     // Annotate
     { id: 'highlight', name: 'Highlight', description: 'Highlight text', icon: 'highlight', category: 'annotate', isPremium: false },
     { id: 'draw', name: 'Draw', description: 'Freehand drawing', icon: 'draw', category: 'annotate', isPremium: false },
-    { id: 'shapes', name: 'Shapes', description: 'Add shapes', icon: 'shapes', category: 'annotate', isPremium: false },
     { id: 'signature', name: 'Signature', description: 'Add signature', icon: 'signature', category: 'annotate', isPremium: false },
     { id: 'stamp', name: 'Stamp', description: 'Add stamps', icon: 'stamp', category: 'annotate', isPremium: false },
     { id: 'notes', name: 'Sticky Notes', description: 'Add notes', icon: 'notes', category: 'annotate', isPremium: false },
@@ -61,8 +60,8 @@ const TOOLS: Tool[] = [
     { id: 'bookmark', name: 'Add Bookmarks', description: 'Create bookmarks', icon: 'bookmark', category: 'advanced', isPremium: false },
     { id: 'hyperlinks', name: 'Add Links', description: 'Insert hyperlinks', icon: 'hyperlinks', category: 'advanced', isPremium: false },
     // AI Tools
-    { id: 'ai-summarize', name: 'AI Summarize', description: 'Smart summary of PDF', icon: 'ai-summarize', category: 'advanced', isPremium: false },
-    { id: 'ai-translate', name: 'AI Translate', description: 'Translate PDF content', icon: 'ai-translate', category: 'advanced', isPremium: false },
+    { id: 'ai-summarize', name: 'AI Summarize', description: 'Smart summary of PDF', icon: 'ai-summarize', category: 'ai-tools' as ToolCategory, isPremium: false },
+    { id: 'ai-translate', name: 'AI Translate', description: 'Translate PDF content', icon: 'ai-translate', category: 'ai-tools' as ToolCategory, isPremium: false },
 ];
 
 const CATEGORIES: { id: ToolCategory; name: string; icon: React.ReactNode }[] = [
@@ -72,6 +71,7 @@ const CATEGORIES: { id: ToolCategory; name: string; icon: React.ReactNode }[] = 
     { id: 'annotate', name: 'Annotate', icon: <Pencil size={18} /> },
     { id: 'security', name: 'Security', icon: <Lock size={18} /> },
     { id: 'advanced', name: 'Advanced', icon: <Zap size={18} /> },
+    { id: 'ai-tools' as ToolCategory, name: 'AI Tools', icon: <Sparkles size={18} /> },
 ];
 
 const getToolIcon = (iconName: string, size: number = 20) => {

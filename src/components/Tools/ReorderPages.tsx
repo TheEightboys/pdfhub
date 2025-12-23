@@ -53,16 +53,6 @@ export function ReorderPagesTool() {
         setHasChanges(true);
     }, [pageOrder]);
 
-    const moveToPosition = useCallback((fromIndex: number, toIndex: number) => {
-        if (fromIndex === toIndex) return;
-
-        const newOrder = [...pageOrder];
-        const [moved] = newOrder.splice(fromIndex, 1);
-        newOrder.splice(toIndex, 0, moved);
-        setPageOrder(newOrder);
-        setHasChanges(true);
-    }, [pageOrder]);
-
     const resetOrder = useCallback(() => {
         if (!activeDocument) return;
         const initialOrder = Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1);

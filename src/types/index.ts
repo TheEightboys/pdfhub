@@ -62,7 +62,8 @@ export type AnnotationType =
     | 'freehand'
     | 'signature'
     | 'stamp'
-    | 'note';
+    | 'note'
+    | 'redact';
 
 export interface BaseAnnotation {
     id: string;
@@ -90,7 +91,7 @@ export interface TextAnnotation extends BaseAnnotation {
 }
 
 export interface HighlightAnnotation extends BaseAnnotation {
-    type: 'highlight' | 'underline' | 'strikethrough';
+    type: 'highlight' | 'underline' | 'strikethrough' | 'redact';
     rects: { x: number; y: number; width: number; height: number }[];
 }
 
@@ -106,12 +107,15 @@ export interface ShapeAnnotation extends BaseAnnotation {
 export interface FreehandAnnotation extends BaseAnnotation {
     type: 'freehand';
     path: string;
+    points?: { x: number; y: number }[];
     strokeWidth: number;
 }
 
 export interface SignatureAnnotation extends BaseAnnotation {
     type: 'signature';
-    imageData: string;
+    imageData?: string;
+    points?: { x: number; y: number }[];
+    strokeWidth?: number;
 }
 
 export interface StampAnnotation extends BaseAnnotation {
@@ -142,7 +146,8 @@ export type ToolCategory =
     | 'edit'
     | 'annotate'
     | 'security'
-    | 'advanced';
+    | 'advanced'
+    | 'ai-tools';
 
 export type ToolId =
     // Organize
@@ -200,6 +205,25 @@ export type ToolId =
     | 'ai-summarize'
     | 'ai-translate';
 
+export interface ToolOptions {
+    // Draw Settings
+    drawColor: string;
+    drawWidth: number;
+
+    // Stamp Settings
+    activeStampId?: string; // For adding new stamps
+    selectedStamp?: { text: string; color: string; icon?: any; type: 'predefined' | 'custom'; size?: string };
+
+    // Note Settings
+    noteColor: string;
+
+    // Shape Settings
+    shapeType: 'rectangle' | 'circle' | 'arrow' | 'line';
+    shapeStrokeColor: string;
+    shapeFillColor: string;
+    shapeStrokeWidth: number;
+}
+
 export interface Tool {
     id: ToolId;
     name: string;
@@ -211,6 +235,14 @@ export interface Tool {
 }
 
 // ========== State Types ==========
+export interface User {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+    plan: 'free' | 'pro' | 'enterprise';
+}
+
 export interface AppState {
     theme: 'light' | 'dark';
     sidebarCollapsed: boolean;
@@ -222,6 +254,15 @@ export interface AppState {
     viewMode: 'single' | 'continuous' | 'grid';
     isLoading: boolean;
     loadingMessage?: string;
+    previewState: PreviewState | null;
+    user: User | null;
+    toolOptions: ToolOptions;
+}
+
+export interface PreviewState {
+    type: 'watermark' | 'page-numbers' | 'header-footer' | 'rotate' | null;
+    data: any;
+    timestamp: number;
 }
 
 export interface HistoryState {
@@ -245,6 +286,10 @@ export type AppAction =
     | { type: 'ADD_ANNOTATION'; payload: Annotation }
     | { type: 'UPDATE_ANNOTATION'; payload: { id: string; updates: Partial<Annotation> } }
     | { type: 'DELETE_ANNOTATION'; payload: string }
+    | { type: 'SET_PREVIEW_STATE'; payload: PreviewState | null }
+    | { type: 'LOGIN'; payload: User }
+    | { type: 'LOGOUT' }
+    | { type: 'SET_TOOL_OPTIONS'; payload: Partial<ToolOptions> }
     | { type: 'UNDO' }
     | { type: 'REDO' };
 
@@ -283,7 +328,8 @@ export interface ExportOptions {
 }
 
 export interface CompressionOptions {
-    level: 'low' | 'medium' | 'high' | 'extreme';
+    level: 'low' | 'medium' | 'high' | 'extreme' | 'custom';
+    targetSizeMB?: number;
     imageQuality: number;
     removeMetadata: boolean;
     removeBookmarks: boolean;

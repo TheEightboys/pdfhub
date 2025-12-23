@@ -101,8 +101,8 @@ export function BookmarksTool() {
             // This creates a basic outline structure
 
             // Note: pdf-lib has limited bookmark support
-            // For full bookmark functionality, you would need a more specialized library
-            // This creates a basic outline structure
+            // This implementation simulates the structure
+            // In a full implementation, we would construct the Outlines dictionary
 
             const pdfBytes = await pdfDoc.save();
             const fileName = activeDocument.name.replace('.pdf', '_bookmarked.pdf');
@@ -141,7 +141,7 @@ export function BookmarksTool() {
     return (
         <div className="tool-panel">
             <div className="tool-header">
-                <h2 className="tool-title">PDF Bookmarks</h2>
+                <h2 className="tool-title">PDF Bookmarks <span className="badge badge-warning" style={{ fontSize: '0.6em', verticalAlign: 'middle' }}>Beta</span></h2>
                 <p className="tool-description">
                     Add navigation bookmarks to your PDF for easy access
                 </p>

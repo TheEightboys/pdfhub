@@ -1,9 +1,10 @@
 /**
  * Signature Tool - Enhanced Control Panel
  * Premium settings panel for signing directly on PDF
+ * Fixed: Type/Upload tabs no longer close the panel
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import {
     FileSignature,
@@ -11,12 +12,9 @@ import {
     Type,
     Pen,
     Upload,
-    Download,
     Palette,
     CheckCircle2
 } from 'lucide-react';
-import { PDFDocument } from 'pdf-lib';
-import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
 type SignatureMode = 'draw' | 'type' | 'upload';
@@ -42,7 +40,7 @@ const SIGNATURE_FONTS = [
 ];
 
 export function SignatureTool() {
-    const { state } = useApp();
+    const { state, setActiveTool, setToolOptions } = useApp();
     const { addToast } = useToast();
     const { activeDocument, selectedPages } = state;
 
@@ -51,7 +49,6 @@ export function SignatureTool() {
     const [signatureFont, setSignatureFont] = useState(SIGNATURE_FONTS[0].value);
     const [signatureColor, setSignatureColor] = useState(SIGNATURE_COLORS[0]);
     const [signatureWidth, setSignatureWidth] = useState(2);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,37 +62,45 @@ export function SignatureTool() {
         }
     };
 
-    const handleApplySignature = async () => {
-        if (!activeDocument) return;
-
-        setIsProcessing(true);
-
-        try {
-            const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
-
-            // Simulate processing - in full implementation, embed signature strokes
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            const pdfBytes = await pdfDoc.save();
-            const fileName = activeDocument.name.replace('.pdf', '_signed.pdf');
-            downloadPDF(pdfBytes, fileName);
-
-            addToast({
-                type: 'success',
-                title: 'Signature Applied',
-                message: `Document signed and saved as ${fileName}`,
-            });
-        } catch (error) {
-            console.error('Error applying signature:', error);
-            addToast({
-                type: 'error',
-                title: 'Error',
-                message: 'Failed to apply signature.',
-            });
-        } finally {
-            setIsProcessing(false);
-        }
+    const handleDone = () => {
+        setActiveTool(null);
     };
+
+    // Mode change handler - keep tool active, just change UI mode
+    const handleModeChange = (newMode: SignatureMode) => {
+        setMode(newMode);
+        // Keep signature tool active for draw mode
+        if (newMode === 'draw') {
+            setActiveTool('signature');
+        }
+        // For type/upload, we keep the panel open but user will place via click
+    };
+
+    // Place typed signature on PDF
+    const handlePlaceTypedSignature = () => {
+        if (!typedSignature || !activeDocument) return;
+        addToast({
+            type: 'info',
+            title: 'Click on PDF',
+            message: 'Click where you want to place the typed signature.',
+        });
+        // Store the typed signature in toolOptions for PDFViewer to use
+        setToolOptions({
+            selectedStamp: {
+                text: typedSignature,
+                color: signatureColor.value,
+                type: 'custom'
+            }
+        });
+        setActiveTool('add-text'); // Use add-text mode to place
+    };
+
+    // Initialize draw mode
+    useEffect(() => {
+        if (mode === 'draw') {
+            setActiveTool('signature');
+        }
+    }, []);
 
     if (!activeDocument) {
         return (
@@ -147,21 +152,21 @@ export function SignatureTool() {
                     <div className="mode-tabs">
                         <button
                             className={`mode-tab ${mode === 'draw' ? 'active' : ''}`}
-                            onClick={() => setMode('draw')}
+                            onClick={() => handleModeChange('draw')}
                         >
                             <Pen size={16} />
                             <span>Draw</span>
                         </button>
                         <button
                             className={`mode-tab ${mode === 'type' ? 'active' : ''}`}
-                            onClick={() => setMode('type')}
+                            onClick={() => handleModeChange('type')}
                         >
                             <Type size={16} />
                             <span>Type</span>
                         </button>
                         <button
                             className={`mode-tab ${mode === 'upload' ? 'active' : ''}`}
-                            onClick={() => setMode('upload')}
+                            onClick={() => handleModeChange('upload')}
                         >
                             <Upload size={16} />
                             <span>Upload</span>
@@ -169,7 +174,7 @@ export function SignatureTool() {
                     </div>
                 </div>
 
-                {/* Draw Mode Instructions */}
+                {/* Draw Mode */}
                 {mode === 'draw' && (
                     <>
                         <div className="tool-section">
@@ -184,7 +189,6 @@ export function SignatureTool() {
                             </div>
                         </div>
 
-                        {/* Signature Color */}
                         <div className="tool-section">
                             <h3 className="section-title">
                                 <Palette size={14} />
@@ -203,7 +207,6 @@ export function SignatureTool() {
                             </div>
                         </div>
 
-                        {/* Pen Width */}
                         <div className="tool-section">
                             <h3 className="section-title">Pen Thickness</h3>
                             <div className="brush-sizes">
@@ -224,19 +227,6 @@ export function SignatureTool() {
                                         <span className="brush-label">{width.label}</span>
                                     </button>
                                 ))}
-                            </div>
-                        </div>
-
-                        {/* Drawing Controls */}
-                        <div className="tool-section">
-                            <div className="draw-on-pdf-prompt">
-                                <div className="prompt-icon" style={{ backgroundColor: signatureColor.value }}>
-                                    <Pen size={24} style={{ color: '#fff' }} />
-                                </div>
-                                <div className="prompt-content">
-                                    <h4>Ready to Sign</h4>
-                                    <p>Draw your signature on the PDF. Use undo/clear buttons on the viewer if needed.</p>
-                                </div>
                             </div>
                         </div>
                     </>
@@ -272,7 +262,6 @@ export function SignatureTool() {
                             </div>
                         </div>
 
-                        {/* Signature Color for typed */}
                         <div className="tool-section">
                             <h3 className="section-title">Color</h3>
                             <div className="color-grid">
@@ -301,9 +290,13 @@ export function SignatureTool() {
                                 >
                                     {typedSignature}
                                 </div>
-                                <p className="input-hint" style={{ marginTop: '12px', textAlign: 'center' }}>
-                                    Click on the PDF to place your signature
-                                </p>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', marginTop: '12px' }}
+                                    onClick={handlePlaceTypedSignature}
+                                >
+                                    Place on PDF
+                                </button>
                             </div>
                         )}
                     </>
@@ -355,20 +348,10 @@ export function SignatureTool() {
                 </div>
                 <button
                     className="btn btn-primary"
-                    onClick={handleApplySignature}
-                    disabled={isProcessing}
+                    onClick={handleDone}
                 >
-                    {isProcessing ? (
-                        <>
-                            <FileSignature size={18} className="animate-spin" />
-                            <span>Applying...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Download size={18} />
-                            <span>Apply & Download</span>
-                        </>
-                    )}
+                    <CheckCircle2 size={18} />
+                    <span>Done</span>
                 </button>
             </div>
         </div>

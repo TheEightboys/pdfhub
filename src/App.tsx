@@ -231,7 +231,7 @@ function AppContent() {
                 <div className="loading-overlay">
                     <div className="loading-content">
                         <div className="loading-logo">
-                            <span className="loading-logo-text">PH</span>
+                            <img src="/logo.png" alt="PDFHub" style={{ width: 64, height: 64, objectFit: 'contain' }} />
                         </div>
 
                         {/* Windows-style bouncing dots */}

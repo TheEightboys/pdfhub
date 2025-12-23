@@ -1,46 +1,47 @@
 /**
- * Add Text Tool
+ * Add Text Tool - Compact Improved UI
  * Add text annotations to PDF pages
  */
 
 import { useState } from 'react';
 import { useApp } from '../../store/appStore';
-import { Type, FileText, Download, Check, AlignLeft, AlignCenter, AlignRight, Bold, Italic } from 'lucide-react';
+import { Type, FileText, AlignLeft, AlignCenter, AlignRight, Bold, Italic } from 'lucide-react';
 import './Tools.css';
 
-const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48];
+const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32];
 const FONTS = [
     { value: 'Helvetica', label: 'Helvetica' },
     { value: 'Times-Roman', label: 'Times Roman' },
     { value: 'Courier', label: 'Courier' },
+    { value: 'Arial', label: 'Arial' },
+];
+
+const TEXT_COLORS = [
+    { name: 'Black', value: '#000000' },
+    { name: 'Red', value: '#dc2626' },
+    { name: 'Blue', value: '#1e40af' },
+    { name: 'Green', value: '#16a34a' },
+    { name: 'Orange', value: '#ea580c' },
+    { name: 'Purple', value: '#7c3aed' },
 ];
 
 export function AddTextTool() {
-    const { state } = useApp();
+    const { state, setActiveTool, setToolOptions } = useApp();
     const { activeDocument } = state;
 
-    const [text, setText] = useState('');
-    const [fontSize, setFontSize] = useState(14);
-    const [fontFamily, setFontFamily] = useState('Helvetica');
+    const [fontSize, setFontSize] = useState(12);
+    const [fontFamily, setFontFamily] = useState('Arial');
     const [textColor, setTextColor] = useState('#000000');
     const [alignment, setAlignment] = useState<'left' | 'center' | 'right'>('left');
     const [isBold, setIsBold] = useState(false);
     const [isItalic, setIsItalic] = useState(false);
-    const [position, setPosition] = useState({ x: 50, y: 50 });
-    const [targetPage, setTargetPage] = useState(1);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [isComplete, setIsComplete] = useState(false);
 
-    const handleAddText = async () => {
-        if (!activeDocument || !text.trim()) return;
-
-        setIsProcessing(true);
-
-        // Simulate processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        setIsComplete(true);
-        setIsProcessing(false);
+    const handleActivateAddText = () => {
+        // Set tool options and activate add-text mode
+        setToolOptions({
+            drawColor: textColor,
+        });
+        setActiveTool('add-text');
     };
 
     if (!activeDocument) {
@@ -57,56 +58,19 @@ export function AddTextTool() {
         );
     }
 
-    if (isComplete) {
-        return (
-            <div className="tool-panel">
-                <div className="tool-header">
-                    <h2 className="tool-title">Add Text</h2>
-                    <p className="tool-description">Text added successfully</p>
-                </div>
-                <div className="tool-content">
-                    <div className="success-result">
-                        <div className="success-icon">
-                            <Check size={48} />
-                        </div>
-                        <h3>Text Added!</h3>
-                        <p>Your text has been added to page {targetPage}.</p>
-                    </div>
-                </div>
-                <div className="tool-footer">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            setIsComplete(false);
-                            setText('');
-                        }}
-                    >
-                        Add More Text
-                    </button>
-                    <button className="btn btn-primary">
-                        <Download size={18} />
-                        <span>Download PDF</span>
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="tool-panel">
             <div className="tool-header">
                 <h2 className="tool-title">Add Text</h2>
-                <p className="tool-description">
-                    Add text anywhere on your PDF pages
-                </p>
+                <p className="tool-description">Click on PDF to place text</p>
             </div>
 
             <div className="tool-content">
-                {/* Document Info */}
+                {/* Document Info - Compact */}
                 <div className="tool-section">
-                    <div className="compress-file-info">
+                    <div className="compress-file-info compact">
                         <div className="compress-file-icon">
-                            <FileText size={24} />
+                            <FileText size={20} />
                         </div>
                         <div className="compress-file-details">
                             <span className="compress-file-name">{activeDocument.name}</span>
@@ -115,27 +79,13 @@ export function AddTextTool() {
                     </div>
                 </div>
 
-                {/* Text Input */}
+                {/* Formatting Row - Compact Horizontal */}
                 <div className="tool-section">
-                    <h3 className="section-title">Text Content</h3>
-                    <textarea
-                        className="text-input text-area"
-                        placeholder="Enter your text here..."
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        rows={4}
-                    />
-                </div>
-
-                {/* Text Formatting */}
-                <div className="tool-section">
-                    <h3 className="section-title">Formatting</h3>
-
-                    <div className="format-row">
-                        <div className="format-group">
-                            <span className="input-label">Font</span>
+                    <div className="compact-format-row">
+                        <div className="compact-format-group">
+                            <label className="compact-label">Font</label>
                             <select
-                                className="text-input-sm"
+                                className="compact-select"
                                 value={fontFamily}
                                 onChange={(e) => setFontFamily(e.target.value)}
                             >
@@ -145,10 +95,10 @@ export function AddTextTool() {
                             </select>
                         </div>
 
-                        <div className="format-group">
-                            <span className="input-label">Size</span>
+                        <div className="compact-format-group">
+                            <label className="compact-label">Size</label>
                             <select
-                                className="text-input-sm"
+                                className="compact-select compact-select-sm"
                                 value={fontSize}
                                 onChange={(e) => setFontSize(Number(e.target.value))}
                             >
@@ -157,191 +107,116 @@ export function AddTextTool() {
                                 ))}
                             </select>
                         </div>
-
-                        <div className="format-group">
-                            <span className="input-label">Color</span>
-                            <input
-                                type="color"
-                                className="color-picker-sm"
-                                value={textColor}
-                                onChange={(e) => setTextColor(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="format-buttons">
-                        <button
-                            className={`format-btn ${isBold ? 'active' : ''}`}
-                            onClick={() => setIsBold(!isBold)}
-                            title="Bold"
-                        >
-                            <Bold size={16} />
-                        </button>
-                        <button
-                            className={`format-btn ${isItalic ? 'active' : ''}`}
-                            onClick={() => setIsItalic(!isItalic)}
-                            title="Italic"
-                        >
-                            <Italic size={16} />
-                        </button>
-                        <div className="format-divider" />
-                        <button
-                            className={`format-btn ${alignment === 'left' ? 'active' : ''}`}
-                            onClick={() => setAlignment('left')}
-                            title="Align Left"
-                        >
-                            <AlignLeft size={16} />
-                        </button>
-                        <button
-                            className={`format-btn ${alignment === 'center' ? 'active' : ''}`}
-                            onClick={() => setAlignment('center')}
-                            title="Align Center"
-                        >
-                            <AlignCenter size={16} />
-                        </button>
-                        <button
-                            className={`format-btn ${alignment === 'right' ? 'active' : ''}`}
-                            onClick={() => setAlignment('right')}
-                            title="Align Right"
-                        >
-                            <AlignRight size={16} />
-                        </button>
                     </div>
                 </div>
 
-                {/* Position */}
+                {/* Color Selection - Compact */}
                 <div className="tool-section">
-                    <h3 className="section-title">Position</h3>
-
-                    {/* Custom Position Inputs */}
-                    <div className="custom-position">
-                        <div className="position-input-group">
-                            <span className="input-label">X Position (%)</span>
-                            <input
-                                type="number"
-                                className="number-input"
-                                min={0}
-                                max={100}
-                                value={position.x}
-                                onChange={(e) => setPosition(prev => ({ ...prev, x: Math.max(0, Math.min(100, Number(e.target.value))) }))}
+                    <h4 className="section-title-inline">Color</h4>
+                    <div className="color-row">
+                        {TEXT_COLORS.map(color => (
+                            <button
+                                key={color.value}
+                                className={`color-btn-sm ${textColor === color.value ? 'active' : ''}`}
+                                style={{ backgroundColor: color.value }}
+                                onClick={() => setTextColor(color.value)}
+                                title={color.name}
                             />
-                        </div>
-                        <div className="position-input-group">
-                            <span className="input-label">Y Position (%)</span>
-                            <input
-                                type="number"
-                                className="number-input"
-                                min={0}
-                                max={100}
-                                value={position.y}
-                                onChange={(e) => setPosition(prev => ({ ...prev, y: Math.max(0, Math.min(100, Number(e.target.value))) }))}
-                            />
-                        </div>
-                    </div>
-
-                    <p className="position-hint">Or choose a preset:</p>
-
-                    <div className="position-grid">
-                        <button
-                            className={`position-btn ${position.x === 10 && position.y === 10 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 10, y: 10 })}
-                        >
-                            Top Left
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 50 && position.y === 10 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 50, y: 10 })}
-                        >
-                            Top Center
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 90 && position.y === 10 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 90, y: 10 })}
-                        >
-                            Top Right
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 10 && position.y === 50 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 10, y: 50 })}
-                        >
-                            Middle Left
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 50 && position.y === 50 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 50, y: 50 })}
-                        >
-                            Center
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 90 && position.y === 50 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 90, y: 50 })}
-                        >
-                            Middle Right
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 10 && position.y === 90 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 10, y: 90 })}
-                        >
-                            Bottom Left
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 50 && position.y === 90 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 50, y: 90 })}
-                        >
-                            Bottom Center
-                        </button>
-                        <button
-                            className={`position-btn ${position.x === 90 && position.y === 90 ? 'active' : ''}`}
-                            onClick={() => setPosition({ x: 90, y: 90 })}
-                        >
-                            Bottom Right
-                        </button>
+                        ))}
+                        <input
+                            type="color"
+                            value={textColor}
+                            onChange={(e) => setTextColor(e.target.value)}
+                            className="color-picker-mini"
+                            title="Custom color"
+                        />
                     </div>
                 </div>
 
-                {/* Target Page */}
+                {/* Style Buttons - Compact Row */}
                 <div className="tool-section">
-                    <h3 className="section-title">Apply To</h3>
-                    <div className="inline-controls">
-                        <div className="inline-control">
-                            <span className="input-label">Page</span>
-                            <input
-                                type="number"
-                                className="number-input"
-                                min={1}
-                                max={activeDocument.pageCount}
-                                value={targetPage}
-                                onChange={(e) => setTargetPage(Math.max(1, Math.min(activeDocument.pageCount, Number(e.target.value))))}
-                            />
+                    <div className="compact-style-row">
+                        <div className="style-btn-group">
+                            <button
+                                className={`style-btn ${isBold ? 'active' : ''}`}
+                                onClick={() => setIsBold(!isBold)}
+                                title="Bold"
+                            >
+                                <Bold size={14} />
+                            </button>
+                            <button
+                                className={`style-btn ${isItalic ? 'active' : ''}`}
+                                onClick={() => setIsItalic(!isItalic)}
+                                title="Italic"
+                            >
+                                <Italic size={14} />
+                            </button>
                         </div>
-                        <span style={{ alignSelf: 'flex-end', paddingBottom: '10px', color: '#64748b' }}>
-                            of {activeDocument.pageCount}
+                        <div className="style-divider" />
+                        <div className="style-btn-group">
+                            <button
+                                className={`style-btn ${alignment === 'left' ? 'active' : ''}`}
+                                onClick={() => setAlignment('left')}
+                                title="Left"
+                            >
+                                <AlignLeft size={14} />
+                            </button>
+                            <button
+                                className={`style-btn ${alignment === 'center' ? 'active' : ''}`}
+                                onClick={() => setAlignment('center')}
+                                title="Center"
+                            >
+                                <AlignCenter size={14} />
+                            </button>
+                            <button
+                                className={`style-btn ${alignment === 'right' ? 'active' : ''}`}
+                                onClick={() => setAlignment('right')}
+                                title="Right"
+                            >
+                                <AlignRight size={14} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Preview / Instruction */}
+                <div className="tool-section">
+                    <div className="text-preview-box">
+                        <span
+                            className="text-preview-sample"
+                            style={{
+                                color: textColor,
+                                fontFamily: fontFamily,
+                                fontSize: `${Math.min(fontSize, 18)}px`,
+                                fontWeight: isBold ? 'bold' : 'normal',
+                                fontStyle: isItalic ? 'italic' : 'normal'
+                            }}
+                        >
+                            Sample Text
                         </span>
+                    </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="tool-section">
+                    <div className="info-banner-compact" style={{ background: '#eff6ff', borderLeft: '3px solid #3b82f6' }}>
+                        <Type size={16} color="#3b82f6" />
+                        <span style={{ color: '#1e40af', fontSize: '12px' }}>Click anywhere on the PDF to add text</span>
                     </div>
                 </div>
             </div>
 
             <div className="tool-footer">
                 <div className="tool-summary">
-                    <Type size={16} />
+                    <Type size={14} />
                     <span>{fontFamily}, {fontSize}px</span>
                 </div>
                 <button
-                    className="btn btn-primary"
-                    onClick={handleAddText}
-                    disabled={isProcessing || !text.trim()}
+                    className="btn btn-primary btn-sm"
+                    onClick={handleActivateAddText}
                 >
-                    {isProcessing ? (
-                        <>
-                            <Type size={18} className="animate-spin" />
-                            <span>Adding...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Type size={18} />
-                            <span>Add Text</span>
-                        </>
-                    )}
+                    <Type size={16} />
+                    <span>Add Text</span>
                 </button>
             </div>
         </div>

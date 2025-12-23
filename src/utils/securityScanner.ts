@@ -63,14 +63,13 @@ const MAX_SCAN_TIME = 5000;
 
 export class PDFSecurityScanner {
     private threats: SecurityThreat[] = [];
-    private startTime: number = 0;
+
 
     /**
      * Scan a PDF file for security threats
      */
     async scanPDF(file: File): Promise<SecurityStatus> {
         this.threats = [];
-        this.startTime = Date.now();
 
         try {
             // Check file size

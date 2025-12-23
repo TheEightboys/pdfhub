@@ -1,12 +1,11 @@
 /**
- * Rotate Pages Tool
+ * Rotate Pages Tool - Optimized for large PDFs
  * Rotate PDF pages individually or all at once
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { rotatePages, downloadPDF, getPDFBytes } from '../../utils/pdfHelpers';
-import { generateThumbnail } from '../../utils/imageHelpers';
+import { rotatePages, downloadPDF } from '../../utils/pdfHelpers';
 import {
     Download,
     Loader2,
@@ -16,13 +15,25 @@ import {
 } from 'lucide-react';
 import './Tools.css';
 
+// Lightweight placeholder with rotation indicator
+const getPlaceholder = (pageNum: number, rotation: number = 0) =>
+    `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="70" height="100" viewBox="0 0 70 100">
+            <rect fill="#f1f5f9" width="70" height="100" rx="4"/>
+            <rect fill="#e2e8f0" x="8" y="8" width="54" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="14" width="40" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="20" width="48" height="3" rx="1"/>
+            <text x="35" y="55" text-anchor="middle" fill="#64748b" font-size="16" font-weight="bold" font-family="Arial">${pageNum}</text>
+            ${rotation !== 0 ? `<text x="35" y="75" text-anchor="middle" fill="#dc2626" font-size="10" font-family="Arial">${rotation}°</text>` : ''}
+        </svg>
+    `)}`;
+
 export function RotatePagesTool() {
-    const { state, setLoading, updateDocument } = useApp();
+    const { state, setLoading } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [isProcessing, setIsProcessing] = useState(false);
-    const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [localRotations, setLocalRotations] = useState<Record<number, number>>({});
     const [selectedPages, setSelectedPages] = useState<number[]>([]);
 
@@ -34,39 +45,29 @@ export function RotatePagesTool() {
                 rotations[page.pageNumber] = page.rotation;
             });
             setLocalRotations(rotations);
+            setSelectedPages([]);
         }
     }, [activeDocument?.id]);
 
-    // Generate thumbnails using optimized batch function
-    useEffect(() => {
-        const generateThumbs = async () => {
-            if (!activeDocument) return;
-
-            // Pre-fill with empty placeholders for immediate UI
-            setThumbnails(Array(activeDocument.pageCount).fill(''));
-
-            try {
-                // Use batch generation with smaller thumbnails (80px)
-                const { generateAllThumbnails } = await import('../../utils/imageHelpers');
-                const thumbs = await generateAllThumbnails(activeDocument.arrayBuffer.slice(0), 80);
-                setThumbnails(thumbs);
-            } catch (error) {
-                console.error('Failed to generate thumbnails:', error);
-            }
-        };
-
-        generateThumbs();
-    }, [activeDocument?.id]);
-
-    const togglePageSelection = (pageNumber: number) => {
+    const togglePageSelection = useCallback((pageNumber: number) => {
         setSelectedPages(prev =>
             prev.includes(pageNumber)
                 ? prev.filter(p => p !== pageNumber)
                 : [...prev, pageNumber].sort((a, b) => a - b)
         );
-    };
+    }, []);
 
-    const rotateSelected = (direction: 'cw' | 'ccw') => {
+    const selectAll = useCallback(() => {
+        if (activeDocument) {
+            setSelectedPages(Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1));
+        }
+    }, [activeDocument]);
+
+    const deselectAll = useCallback(() => {
+        setSelectedPages([]);
+    }, []);
+
+    const rotateSelected = useCallback((direction: 'cw' | 'ccw') => {
         const pagesToRotate = selectedPages.length > 0 ? selectedPages :
             Array.from({ length: activeDocument?.pageCount || 0 }, (_, i) => i + 1);
 
@@ -79,9 +80,9 @@ export function RotatePagesTool() {
             });
             return newRotations;
         });
-    };
+    }, [selectedPages, activeDocument]);
 
-    const rotatePage = (pageNumber: number, direction: 'cw' | 'ccw') => {
+    const rotatePage = useCallback((pageNumber: number, direction: 'cw' | 'ccw') => {
         setLocalRotations(prev => {
             const current = prev[pageNumber] || 0;
             const delta = direction === 'cw' ? 90 : -90;
@@ -90,14 +91,14 @@ export function RotatePagesTool() {
                 [pageNumber]: ((current + delta) % 360 + 360) % 360,
             };
         });
-    };
+    }, []);
 
-    const hasChanges = () => {
+    const hasChanges = useCallback(() => {
         if (!activeDocument) return false;
         return activeDocument.pages.some(
             page => (localRotations[page.pageNumber] || 0) !== page.rotation
         );
-    };
+    }, [activeDocument, localRotations]);
 
     const handleApply = async () => {
         if (!activeDocument || !hasChanges()) return;
@@ -156,36 +157,32 @@ export function RotatePagesTool() {
             </div>
 
             <div className="tool-content">
-                {/* Bulk Actions */}
+                {/* Quick Actions */}
                 <div className="tool-section">
-                    <div className="section-header">
-                        <h4 className="section-title">
-                            {selectedPages.length > 0
-                                ? `${selectedPages.length} pages selected`
-                                : 'All pages'}
-                        </h4>
-                        <div className="section-actions">
-                            <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => rotateSelected('ccw')}
-                            >
-                                <RotateCcw size={16} />
-                                Rotate Left
-                            </button>
-                            <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => rotateSelected('cw')}
-                            >
-                                <RotateCw size={16} />
-                                Rotate Right
-                            </button>
-                        </div>
+                    <div className="quick-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={selectAll}>
+                            Select All
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={deselectAll}>
+                            Deselect All
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => rotateSelected('ccw')}>
+                            <RotateCcw size={14} />
+                            Rotate Left
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => rotateSelected('cw')}>
+                            <RotateCw size={14} />
+                            Rotate Right
+                        </button>
                     </div>
                 </div>
 
                 {/* Page Grid */}
                 <div className="tool-section">
-                    <div className="page-grid">
+                    <h3 className="section-title">
+                        {selectedPages.length > 0 ? `${selectedPages.length} pages selected` : 'All pages'}
+                    </h3>
+                    <div className="page-grid page-grid-compact">
                         {Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1).map(pageNum => {
                             const isSelected = selectedPages.includes(pageNum);
                             const rotation = localRotations[pageNum] || 0;
@@ -193,7 +190,7 @@ export function RotatePagesTool() {
                             return (
                                 <div
                                     key={pageNum}
-                                    className={`page-grid-item ${isSelected ? 'selected' : ''}`}
+                                    className={`page-grid-item compact ${isSelected ? 'selected' : ''}`}
                                     onClick={() => togglePageSelection(pageNum)}
                                 >
                                     {isSelected && (
@@ -202,12 +199,12 @@ export function RotatePagesTool() {
                                         </div>
                                     )}
 
-                                    <div className="page-grid-thumb" style={{ transform: `rotate(${rotation}deg)` }}>
-                                        {thumbnails[pageNum - 1] ? (
-                                            <img src={thumbnails[pageNum - 1]} alt={`Page ${pageNum}`} />
-                                        ) : (
-                                            <div className="page-grid-skeleton" />
-                                        )}
+                                    <div className="page-grid-thumb compact" style={{ transform: `rotate(${rotation}deg)` }}>
+                                        <img
+                                            src={getPlaceholder(pageNum, rotation)}
+                                            alt={`Page ${pageNum}`}
+                                            loading="lazy"
+                                        />
                                     </div>
 
                                     <div className="page-grid-actions">
@@ -219,7 +216,7 @@ export function RotatePagesTool() {
                                             }}
                                             title="Rotate left"
                                         >
-                                            <RotateCcw size={14} />
+                                            <RotateCcw size={12} />
                                         </button>
                                         <span className="page-grid-number">{pageNum}</span>
                                         <button
@@ -230,13 +227,9 @@ export function RotatePagesTool() {
                                             }}
                                             title="Rotate right"
                                         >
-                                            <RotateCw size={14} />
+                                            <RotateCw size={12} />
                                         </button>
                                     </div>
-
-                                    {rotation !== 0 && (
-                                        <div className="rotation-badge">{rotation}°</div>
-                                    )}
                                 </div>
                             );
                         })}
@@ -258,7 +251,7 @@ export function RotatePagesTool() {
                 </div>
 
                 <button
-                    className="btn btn-primary btn-lg"
+                    className="btn btn-primary"
                     onClick={handleApply}
                     disabled={isProcessing || !hasChanges()}
                 >

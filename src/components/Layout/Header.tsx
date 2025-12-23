@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { downloadPDF, getPDFBytes } from '../../utils/pdfHelpers';
 import { PDFSecurityScanner } from '../../utils/securityScanner';
+
 import './Header.css';
 
 interface HeaderProps {
@@ -106,14 +107,7 @@ export function Header({ onOpenFile }: HeaderProps) {
 
                 <div className="header-brand">
                     <div className="header-logo">
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            {/* Document shape */}
-                            <path d="M6 4C6 2.89543 6.89543 2 8 2H16L22 8V24C22 25.1046 21.1046 26 20 26H8C6.89543 26 6 25.1046 6 24V4Z" fill="white" stroke="white" strokeWidth="0.5" />
-                            {/* Corner fold */}
-                            <path d="M16 2L22 8H18C16.8954 8 16 7.10457 16 6V2Z" fill="#fecaca" />
-                            {/* PDF text */}
-                            <text x="14" y="18" textAnchor="middle" fill="#dc2626" fontSize="7" fontWeight="800" fontFamily="system-ui">PDF</text>
-                        </svg>
+                        <img src="/logo.png" alt="PDFHub Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                     </div>
                     <div className="header-brand-text">
                         <span className="header-title">PDFHub</span>
@@ -190,6 +184,8 @@ export function Header({ onOpenFile }: HeaderProps) {
                     </button>
                 </div>
             </div>
+
+
         </header>
     );
 }

@@ -176,44 +176,4 @@ export function ToolPanel() {
     );
 }
 
-// Coming Soon Component for tools not yet implemented
-interface ComingSoonToolProps {
-    title: string;
-    icon: React.ReactNode;
-    description: string;
-}
 
-function ComingSoonTool({ title, icon, description }: ComingSoonToolProps) {
-    return (
-        <div className="tool-panel">
-            <div className="tool-header">
-                <h2 className="tool-title">{title}</h2>
-                <p className="tool-description">{description}</p>
-            </div>
-            <div className="tool-content">
-                <div className="coming-soon-container">
-                    <div className="tool-empty-icon">
-                        {icon}
-                    </div>
-                    <h3>Coming Soon</h3>
-                    <p>This powerful feature is currently in development.</p>
-                    <div className="coming-soon-features">
-                        <div className="feature-tag">Fast Processing</div>
-                        <div className="feature-tag">High Quality</div>
-                        <div className="feature-tag">100% Secure</div>
-                    </div>
-                </div>
-            </div>
-            <div className="tool-footer">
-                <div className="tool-summary">
-                    <Wrench size={16} />
-                    <span>In Development</span>
-                </div>
-                <button className="btn btn-primary" disabled>
-                    <Wrench size={18} />
-                    <span>Coming Soon</span>
-                </button>
-            </div>
-        </div>
-    );
-}

@@ -3,7 +3,7 @@
  * Add text or image watermarks to PDF
  */
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { addWatermark, downloadPDF } from '../../utils/pdfHelpers';
 import { WatermarkOptions } from '../../types';
@@ -20,7 +20,7 @@ type WatermarkType = 'text' | 'image';
 type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'diagonal';
 
 export function WatermarkTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, setPreviewState } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
@@ -34,6 +34,36 @@ export function WatermarkTool() {
     const [applyTo, setApplyTo] = useState<'all' | 'custom'>('all');
     const [customPages, setCustomPages] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Update preview whenever settings change
+    useEffect(() => {
+        if (!activeDocument) return;
+
+        let pages: number[] | undefined;
+        if (applyTo === 'custom' && customPages.trim()) {
+            pages = customPages.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+        }
+
+        const options: WatermarkOptions = {
+            type: watermarkType,
+            text: watermarkType === 'text' ? text : undefined,
+            fontSize,
+            color,
+            opacity: opacity / 100,
+            rotation: position === 'diagonal' ? rotation : 0,
+            position: position === 'diagonal' ? 'center' : position,
+            pages,
+        };
+
+        setPreviewState({
+            type: 'watermark',
+            data: options,
+            timestamp: Date.now()
+        });
+
+        // Cleanup preview on unmount
+        return () => setPreviewState(null);
+    }, [activeDocument, watermarkType, text, fontSize, color, opacity, rotation, position, applyTo, customPages, setPreviewState]);
 
     const handleApplyWatermark = async () => {
         if (!activeDocument) return;

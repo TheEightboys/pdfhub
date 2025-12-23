@@ -3,7 +3,7 @@
  * Add page numbers to PDF pages
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { addPageNumbers, downloadPDF } from '../../utils/pdfHelpers';
 import { PageNumberOptions } from '../../types';

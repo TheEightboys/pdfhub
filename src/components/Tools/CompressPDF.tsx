@@ -2,7 +2,7 @@
  * Compress PDF Tool
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { compressPDF, downloadPDF } from '../../utils/pdfHelpers';
 import { CompressionOptions } from '../../types';
@@ -16,10 +16,11 @@ import {
 import './Tools.css';
 
 const compressionPresets: { id: CompressionOptions['level']; name: string; desc: string; reduction: string }[] = [
-    { id: 'low', name: 'Low', desc: 'Minimal compression, best quality', reduction: '~10-20%' },
-    { id: 'medium', name: 'Medium', desc: 'Balanced compression', reduction: '~30-50%' },
-    { id: 'high', name: 'High', desc: 'Strong compression', reduction: '~50-70%' },
-    { id: 'extreme', name: 'Extreme', desc: 'Maximum compression', reduction: '~70-90%' },
+    { id: 'low', name: 'Low', desc: 'Minimal compression, best quality', reduction: '~70% size' },
+    { id: 'medium', name: 'Medium', desc: 'Balanced compression', reduction: '~50% size' },
+    { id: 'high', name: 'High', desc: 'Strong compression', reduction: '~30% size' },
+    { id: 'extreme', name: 'Best', desc: 'Maximum compression', reduction: 'Smallest possible' },
+    { id: 'custom', name: 'Custom', desc: 'Set target size', reduction: 'User defined' },
 ];
 
 export function CompressPDFTool() {
@@ -28,26 +29,33 @@ export function CompressPDFTool() {
     const { activeDocument } = state;
 
     const [level, setLevel] = useState<CompressionOptions['level']>('medium');
+    const [targetSizeMB, setTargetSizeMB] = useState<number>(1);
     const [removeMetadata, setRemoveMetadata] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState<{ originalSize: number; newSize: number } | null>(null);
+    const [progress, setProgress] = useState(0);
 
     const handleCompress = async () => {
         if (!activeDocument) return;
 
         setIsProcessing(true);
-        setLoading(true, 'Compressing PDF...');
+        setProgress(0);
 
         try {
             const options: CompressionOptions = {
                 level,
-                imageQuality: level === 'extreme' ? 50 : level === 'high' ? 70 : 85,
+                targetSizeMB: level === 'custom' ? targetSizeMB : undefined,
+                imageQuality: level === 'extreme' ? 30 : level === 'high' ? 40 : level === 'medium' ? 60 : 80, // Fallback defaults, overridden in helper
                 removeMetadata,
                 removeBookmarks: false,
                 linearize: true,
             };
 
-            const compressedBytes = await compressPDF(activeDocument.arrayBuffer.slice(0), options);
+            const compressedBytes = await compressPDF(
+                activeDocument.arrayBuffer.slice(0),
+                options,
+                (p) => setProgress(p)
+            );
 
             const originalSize = activeDocument.file.size;
             const newSize = compressedBytes.length;
@@ -73,6 +81,7 @@ export function CompressPDFTool() {
             });
         } finally {
             setIsProcessing(false);
+            setProgress(0);
             setLoading(false);
         }
     };
@@ -89,12 +98,18 @@ export function CompressPDFTool() {
         );
     }
 
+    // Default target size logic (initially set to 50% of current)
+    if (activeDocument && level === 'custom' && targetSizeMB === 1 && activeDocument.file.size > 0) {
+        // Only if user hasn't touched it, maybe set intelligent default? 
+        // For now 1MB default is safe.
+    }
+
     return (
         <div className="tool-panel">
             <div className="tool-header">
                 <h2 className="tool-title">Compress PDF</h2>
                 <p className="tool-description">
-                    Reduce file size while preserving quality. Great for sharing and uploading.
+                    Reduce file size while preserving quality.
                 </p>
             </div>
 
@@ -128,6 +143,32 @@ export function CompressPDFTool() {
                             </button>
                         ))}
                     </div>
+                    {level === 'custom' && (
+                        <div className="custom-compression-input" style={{ marginTop: '15px' }}>
+                            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '5px', color: '#475569' }}>
+                                Target Size (MB)
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    value={targetSizeMB}
+                                    onChange={(e) => setTargetSizeMB(parseFloat(e.target.value))}
+                                    style={{
+                                        padding: '8px 12px',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '6px',
+                                        width: '100px',
+                                        fontSize: '14px'
+                                    }}
+                                />
+                                <span style={{ fontSize: '13px', color: '#64748b' }}>
+                                    (Original: {(activeDocument.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Options */}
@@ -140,7 +181,6 @@ export function CompressPDFTool() {
                             onChange={(e) => setRemoveMetadata(e.target.checked)}
                         />
                         <span className="checkbox-label">Remove metadata</span>
-                        <span className="checkbox-hint">Remove title, author, and other document info</span>
                     </label>
                 </div>
 
@@ -166,6 +206,26 @@ export function CompressPDFTool() {
             </div>
 
             <div className="tool-footer">
+                {isProcessing && (
+                    <div className="progress-container" style={{ width: '100%', marginBottom: '10px' }}>
+                        <div className="progress-bar-bg" style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div
+                                className="progress-bar-fill"
+                                style={{
+                                    width: `${progress}%`,
+                                    height: '100%',
+                                    background: '#ef4444',
+                                    transition: 'width 0.2s ease'
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                            <span>Compressing pages...</span>
+                            <span>{progress}%</span>
+                        </div>
+                    </div>
+                )}
+
                 <div className="tool-summary">
                     <span className="summary-stat">
                         <strong>{activeDocument.pageCount}</strong> pages
@@ -184,7 +244,7 @@ export function CompressPDFTool() {
                     {isProcessing ? (
                         <>
                             <Loader2 size={18} className="animate-spin" />
-                            Compressing...
+                            Processing...
                         </>
                     ) : (
                         <>

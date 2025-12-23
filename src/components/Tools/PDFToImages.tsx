@@ -2,7 +2,7 @@
  * PDF to Images Tool
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { downloadPDFAsImages } from '../../utils/imageHelpers';
 import {

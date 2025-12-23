@@ -1,14 +1,11 @@
 /**
- * Draw Tool - Enhanced Control Panel
- * Premium settings for freehand drawing on PDF
+ * DrawTool.tsx
+ * Refactored to use global toolOptions for direct PDF interaction.
  */
 
-import { useState } from 'react';
-import { useApp, useToast } from '../../store/appStore';
+import { useApp } from '../../store/appStore';
 import {
     Pencil,
-    Download,
-    Loader2,
     Palette,
     Circle,
     Undo2,
@@ -16,8 +13,6 @@ import {
     FileText,
     Sparkles
 } from 'lucide-react';
-import { PDFDocument } from 'pdf-lib';
-import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
 const DRAW_COLORS = [
@@ -40,51 +35,19 @@ const BRUSH_SIZES = [
 ];
 
 export function DrawTool() {
-    const { state } = useApp();
-    const { addToast } = useToast();
-    const { activeDocument, selectedPages } = state;
+    const { state, setToolOptions } = useApp();
+    const { activeDocument, selectedPages, toolOptions } = state;
 
-    const [selectedColor, setSelectedColor] = useState(DRAW_COLORS[0]);
-    const [brushSize, setBrushSize] = useState(3);
-    const [isProcessing, setIsProcessing] = useState(false);
+    // Use global options or defaults
+    const selectedColor = DRAW_COLORS.find(c => c.value === toolOptions.drawColor) || DRAW_COLORS[1];
+    const brushSize = toolOptions.drawWidth || 3;
 
-    const handleApply = async () => {
-        if (!activeDocument) {
-            addToast({
-                type: 'warning',
-                title: 'No drawings',
-                message: 'Please draw something on the PDF first.',
-            });
-            return;
-        }
+    const handleColorChange = (color: typeof DRAW_COLORS[0]) => {
+        setToolOptions({ drawColor: color.value });
+    };
 
-        setIsProcessing(true);
-
-        try {
-            const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
-
-            // Simulate processing - in full implementation, embed strokes
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            const pdfBytes = await pdfDoc.save();
-            const fileName = activeDocument.name.replace('.pdf', '_annotated.pdf');
-            downloadPDF(pdfBytes, fileName);
-
-            addToast({
-                type: 'success',
-                title: 'Drawing Applied',
-                message: `Saved as ${fileName}`,
-            });
-        } catch (error) {
-            console.error('Error applying drawing:', error);
-            addToast({
-                type: 'error',
-                title: 'Error',
-                message: 'Failed to apply drawing.',
-            });
-        } finally {
-            setIsProcessing(false);
-        }
+    const handleSizeChange = (size: number) => {
+        setToolOptions({ drawWidth: size });
     };
 
     if (!activeDocument) {
@@ -136,7 +99,7 @@ export function DrawTool() {
                         <div>
                             <strong>Drawing Mode Active</strong>
                             <p style={{ margin: '4px 0 0', opacity: 0.9 }}>
-                                Click and drag on the PDF to draw
+                                Click and drag on the PDF to draw. Changes happen instantly.
                             </p>
                         </div>
                     </div>
@@ -154,7 +117,7 @@ export function DrawTool() {
                                 key={color.value}
                                 className={`color-btn ${selectedColor.value === color.value ? 'active' : ''}`}
                                 style={{ backgroundColor: color.value }}
-                                onClick={() => setSelectedColor(color)}
+                                onClick={() => handleColorChange(color)}
                                 title={color.name}
                             />
                         ))}
@@ -172,7 +135,7 @@ export function DrawTool() {
                             <button
                                 key={size.value}
                                 className={`brush-btn ${brushSize === size.value ? 'active' : ''}`}
-                                onClick={() => setBrushSize(size.value)}
+                                onClick={() => handleSizeChange(size.value)}
                                 title={`${size.label} - ${size.value}px`}
                             >
                                 <span
@@ -210,27 +173,14 @@ export function DrawTool() {
                 <div className="tool-section">
                     <h3 className="section-title">Quick Actions</h3>
                     <div className="quick-actions">
-                        <button className="quick-action-btn" title="Undo Last Stroke">
+                        <button className="quick-action-btn" title="Undo Last Stroke" disabled>
                             <Undo2 size={18} />
-                            <span>Undo</span>
+                            <span>Undo (Ctrl+Z)</span>
                         </button>
-                        <button className="quick-action-btn danger" title="Clear All Drawings">
+                        <button className="quick-action-btn danger" title="Clear All Drawings" disabled>
                             <Trash2 size={18} />
                             <span>Clear All</span>
                         </button>
-                    </div>
-                </div>
-
-                {/* Draw Prompt */}
-                <div className="tool-section">
-                    <div className="draw-on-pdf-prompt">
-                        <div className="prompt-icon" style={{ backgroundColor: selectedColor.value }}>
-                            <Pencil size={24} style={{ color: '#fff' }} />
-                        </div>
-                        <div className="prompt-content">
-                            <h4>Start Drawing</h4>
-                            <p>Your strokes appear in real-time on the PDF. Change colors anytime!</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -250,23 +200,6 @@ export function DrawTool() {
                         {brushSize}px brush
                     </span>
                 </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={handleApply}
-                    disabled={isProcessing}
-                >
-                    {isProcessing ? (
-                        <>
-                            <Loader2 size={18} className="animate-spin" />
-                            <span>Processing...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Download size={18} />
-                            <span>Apply & Download</span>
-                        </>
-                    )}
-                </button>
             </div>
         </div>
     );

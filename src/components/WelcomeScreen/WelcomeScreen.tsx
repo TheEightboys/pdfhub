@@ -76,15 +76,16 @@ const TOOL_ICONS: Record<string, { bg: string; Icon: any }> = {
 };
 
 // Popular tools for quick access
+// Popular tools for quick access
 const POPULAR_TOOLS = [
+    { id: 'image-to-pdf', name: 'Image to PDF', desc: 'Convert JPG/PNG to PDF' },
+    { id: 'sign', name: 'Sign PDF', desc: 'Add electronic signature' },
+    { id: 'compress', name: 'Compress PDF', desc: 'Reduce file size' },
+    { id: 'pdf-to-word', name: 'PDF to Word', desc: 'Convert to editable Doc' },
     { id: 'merge', name: 'Merge PDF', desc: 'Combine multiple PDFs' },
-    { id: 'split', name: 'Split PDF', desc: 'Extract pages from PDF' },
-    { id: 'compress', name: 'Compress', desc: 'Reduce file size' },
-    { id: 'pdf-to-word', name: 'PDF to Word', desc: 'Convert to DOCX' },
-    { id: 'rotate', name: 'Rotate', desc: 'Rotate PDF pages' },
-    { id: 'delete', name: 'Delete Pages', desc: 'Remove pages' },
-    { id: 'add-text', name: 'Add Text', desc: 'Insert text to PDF' },
-    { id: 'signature', name: 'Sign PDF', desc: 'Add your signature' },
+    { id: 'split', name: 'Split PDF', desc: 'Extract specific pages' },
+    { id: 'edit-text', name: 'Edit PDF', desc: 'Add text, shapes, notes' },
+    { id: 'watermark', name: 'Watermark', desc: 'Add watermark to PDF' },
 ];
 
 export function WelcomeScreen({ onFileOpen }: WelcomeScreenProps) {

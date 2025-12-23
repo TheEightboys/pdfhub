@@ -2,19 +2,19 @@
  * Images to PDF Tool
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { Dropzone } from '../UI/Dropzone';
 import { imagesToPDF } from '../../utils/imageHelpers';
 import { downloadPDF } from '../../utils/pdfHelpers';
 import {
-    FileImage,
     GripVertical,
     Trash2,
     Download,
     ChevronUp,
     ChevronDown,
     Loader2,
+    RotateCw,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -22,6 +22,7 @@ interface ImageItem {
     id: string;
     file: File;
     preview: string;
+    rotation: number;
 }
 
 export function ImagesToPDFTool() {
@@ -39,6 +40,7 @@ export function ImagesToPDFTool() {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             file,
             preview: URL.createObjectURL(file),
+            rotation: 0,
         }));
 
         setImages(prev => [...prev, ...newItems]);
@@ -66,6 +68,15 @@ export function ImagesToPDFTool() {
         });
     };
 
+    const rotateImage = (id: string) => {
+        setImages(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, rotation: (item.rotation + 90) % 360 };
+            }
+            return item;
+        }));
+    };
+
     const handleConvert = async () => {
         if (images.length === 0) {
             addToast({
@@ -80,7 +91,9 @@ export function ImagesToPDFTool() {
         setLoading(true, 'Creating PDF...');
 
         try {
-            const files = images.map(i => i.file);
+            // Map items to { file, rotation }
+            const files = images.map(i => ({ file: i.file, rotation: i.rotation }));
+
             const pdfBytes = await imagesToPDF(files, {
                 pageSize,
                 orientation: 'auto',
@@ -174,7 +187,7 @@ export function ImagesToPDFTool() {
 
                                         <div className="file-number">{index + 1}</div>
 
-                                        <div className="image-preview">
+                                        <div className="image-preview" style={{ transform: `rotate(${item.rotation}deg)` }}>
                                             <img src={item.preview} alt={item.file.name} />
                                         </div>
 
@@ -186,6 +199,13 @@ export function ImagesToPDFTool() {
                                         </div>
 
                                         <div className="file-actions">
+                                            <button
+                                                className="file-action-btn"
+                                                onClick={() => rotateImage(item.id)}
+                                                title="Rotate 90°"
+                                            >
+                                                <RotateCw size={16} />
+                                            </button>
                                             <button
                                                 className="file-action-btn"
                                                 onClick={() => moveImage(item.id, 'up')}

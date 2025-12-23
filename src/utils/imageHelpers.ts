@@ -25,11 +25,17 @@ export interface PDFToImageOptions {
     pageRange: 'all' | number[];
 }
 
+
+export interface ImageInput {
+    file: File;
+    rotation?: number; // 0, 90, 180, 270
+}
+
 /**
  * Convert images to a PDF document
  */
 export async function imagesToPDF(
-    images: File[],
+    images: (File | ImageInput)[],
     options: ImageToPageOptions = {
         pageSize: 'a4',
         orientation: 'auto',
@@ -50,10 +56,17 @@ export async function imagesToPDF(
     });
 
     for (let i = 0; i < images.length; i++) {
-        const image = images[i];
+        const item = images[i];
+        const file = 'file' in item ? item.file : item as File;
+        const rotation = 'rotation' in item ? (item.rotation || 0) : 0;
 
         // Convert image to data URL
-        const dataUrl = await fileToDataUrl(image);
+        let dataUrl = await fileToDataUrl(file);
+
+        // Handle rotation if needed
+        if (rotation !== 0) {
+            dataUrl = await rotateImage(dataUrl, rotation);
+        }
 
         // Get image dimensions
         const dimensions = await getImageDimensions(dataUrl);
@@ -111,7 +124,8 @@ export async function imagesToPDF(
         const y = margin + (availableHeight - imgHeight) / 2;
 
         // Add image to PDF
-        const format = getImageFormat(image.type);
+        // Add image to PDF
+        const format = getImageFormat(file.type);
         pdf.addImage(dataUrl, format, x, y, imgWidth, imgHeight, undefined, 'MEDIUM');
     }
 
@@ -443,4 +457,37 @@ export async function compressImage(
             quality
         );
     });
+}
+
+/**
+ * Rotate image data URL by angle
+ */
+async function rotateImage(dataUrl: string, angle: number): Promise<string> {
+    if (angle % 360 === 0) return dataUrl;
+
+    const dimensions = await getImageDimensions(dataUrl);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+
+    // swap dimensions if 90 or 270
+    if (angle % 180 !== 0) {
+        canvas.width = dimensions.height;
+        canvas.height = dimensions.width;
+    } else {
+        canvas.width = dimensions.width;
+        canvas.height = dimensions.height;
+    }
+
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = dataUrl;
+    });
+
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((angle * Math.PI) / 180);
+    ctx.drawImage(img, -dimensions.width / 2, -dimensions.height / 2);
+
+    return canvas.toDataURL('image/jpeg', 0.95);
 }

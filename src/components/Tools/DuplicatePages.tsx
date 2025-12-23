@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { Copy, Check, Download, Plus, Minus, Loader2 } from 'lucide-react';
+import { Copy, Plus, Minus, Loader2, Check } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import { downloadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';

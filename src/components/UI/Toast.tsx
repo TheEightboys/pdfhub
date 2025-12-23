@@ -3,7 +3,7 @@
  * Notification messages
  */
 
-import React from 'react';
+
 import { useToast } from '../../store/appStore';
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 import './Toast.css';

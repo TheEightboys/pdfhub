@@ -1,20 +1,29 @@
 /**
- * Delete Pages Tool
+ * Delete Pages Tool - Optimized for large PDFs
  * Remove unwanted pages from a PDF
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { deletePages, downloadPDF } from '../../utils/pdfHelpers';
-import { generateAllThumbnails } from '../../utils/imageHelpers';
 import {
-    Download,
-    Loader2,
     Trash2,
-    Check,
     AlertTriangle,
+    Loader2,
 } from 'lucide-react';
 import './Tools.css';
+
+// Lightweight placeholder
+const getPlaceholder = (pageNum: number) =>
+    `data:image/svg+xml,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="70" height="100" viewBox="0 0 70 100">
+            <rect fill="#f1f5f9" width="70" height="100" rx="4"/>
+            <rect fill="#e2e8f0" x="8" y="8" width="54" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="14" width="40" height="3" rx="1"/>
+            <rect fill="#e2e8f0" x="8" y="20" width="48" height="3" rx="1"/>
+            <text x="35" y="60" text-anchor="middle" fill="#64748b" font-size="16" font-weight="bold" font-family="Arial">${pageNum}</text>
+        </svg>
+    `)}`;
 
 export function DeletePagesTool() {
     const { state, setLoading } = useApp();
@@ -22,69 +31,41 @@ export function DeletePagesTool() {
     const { activeDocument } = state;
 
     const [isProcessing, setIsProcessing] = useState(false);
-    const [thumbnails, setThumbnails] = useState<string[]>([]);
     const [pagesToDelete, setPagesToDelete] = useState<number[]>([]);
-    const [isLoadingThumbs, setIsLoadingThumbs] = useState(false);
 
-    // Generate thumbnails using optimized progressive batch function
+    // Reset when document changes
     useEffect(() => {
-        const generateThumbs = async () => {
-            if (!activeDocument) return;
-
-            setIsLoadingThumbs(true);
-
-            // Pre-fill with empty placeholders for immediate UI
-            setThumbnails(Array(activeDocument.pageCount).fill(''));
-
-            try {
-                // Use smaller thumbnails (80px) for faster loading
-                const thumbs = await generateAllThumbnails(
-                    activeDocument.arrayBuffer.slice(0),
-                    80, // Smaller size for faster loading
-                    (progress) => {
-                        // Progress callback (optional UI update)
-                    }
-                );
-                setThumbnails(thumbs);
-            } catch (error) {
-                console.error('Failed to generate thumbnails:', error);
-            }
-            setIsLoadingThumbs(false);
-        };
-
-        generateThumbs();
         setPagesToDelete([]);
     }, [activeDocument?.id]);
 
-    const togglePageSelection = (pageNumber: number) => {
+    const togglePageForDeletion = useCallback((pageNum: number) => {
         setPagesToDelete(prev =>
-            prev.includes(pageNumber)
-                ? prev.filter(p => p !== pageNumber)
-                : [...prev, pageNumber].sort((a, b) => a - b)
+            prev.includes(pageNum)
+                ? prev.filter(p => p !== pageNum)
+                : [...prev, pageNum].sort((a, b) => a - b)
         );
-    };
+    }, []);
 
-    const selectAllPages = () => {
-        if (activeDocument) {
-            // Can't delete all pages
-            const allButOne = Array.from({ length: activeDocument.pageCount - 1 }, (_, i) => i + 1);
-            setPagesToDelete(allButOne);
+    const selectAll = useCallback(() => {
+        if (activeDocument && activeDocument.pageCount > 1) {
+            // Select all except the first page for safety
+            setPagesToDelete(Array.from({ length: activeDocument.pageCount - 1 }, (_, i) => i + 2));
         }
-    };
+    }, [activeDocument]);
 
-    const deselectAllPages = () => {
+    const deselectAll = useCallback(() => {
         setPagesToDelete([]);
-    };
+    }, []);
 
     const handleDelete = async () => {
         if (!activeDocument || pagesToDelete.length === 0) return;
 
-        // Ensure at least one page remains
+        // Safety check - don't delete all pages
         if (pagesToDelete.length >= activeDocument.pageCount) {
             addToast({
                 type: 'error',
                 title: 'Cannot delete all pages',
-                message: 'At least one page must remain in the document.',
+                message: 'The PDF must have at least one page.',
             });
             return;
         }
@@ -93,23 +74,15 @@ export function DeletePagesTool() {
         setLoading(true, 'Deleting pages...');
 
         try {
-            const deletedBytes = await deletePages(activeDocument.arrayBuffer.slice(0), pagesToDelete);
-
-            const remainingPages = activeDocument.pageCount - pagesToDelete.length;
-            const fileName = activeDocument.name.replace(
-                '.pdf',
-                `_${remainingPages}_pages.pdf`
-            );
-
-            downloadPDF(deletedBytes, fileName);
+            const result = await deletePages(activeDocument.arrayBuffer.slice(0), pagesToDelete);
+            const fileName = activeDocument.name.replace('.pdf', '_modified.pdf');
+            downloadPDF(result, fileName);
 
             addToast({
                 type: 'success',
                 title: 'Pages deleted!',
-                message: `Removed ${pagesToDelete.length} pages. Saved to ${fileName}`,
+                message: `Removed ${pagesToDelete.length} pages. New PDF has ${activeDocument.pageCount - pagesToDelete.length} pages.`,
             });
-
-            setPagesToDelete([]);
         } catch (error) {
             console.error('Delete failed:', error);
             addToast({
@@ -129,69 +102,77 @@ export function DeletePagesTool() {
                 <div className="tool-empty">
                     <Trash2 size={48} />
                     <h3>Open a PDF first</h3>
-                    <p>Upload a PDF file to delete pages from it.</p>
+                    <p>Upload a PDF file to delete pages.</p>
                 </div>
             </div>
         );
     }
 
-    const remainingPages = activeDocument.pageCount - pagesToDelete.length;
+    const pagesRemaining = activeDocument.pageCount - pagesToDelete.length;
 
     return (
         <div className="tool-panel">
             <div className="tool-header">
                 <h2 className="tool-title">Delete Pages</h2>
                 <p className="tool-description">
-                    Select pages to permanently remove from the PDF.
+                    Select pages to remove from your PDF.
                 </p>
             </div>
 
             <div className="tool-content">
-                <div className="tool-section">
-                    <div className="section-header">
-                        <h4 className="section-title">Click pages to mark for deletion</h4>
-                        <div className="section-actions">
-                            <button className="btn btn-sm btn-ghost" onClick={selectAllPages}>
-                                Select All
-                            </button>
-                            <button className="btn btn-sm btn-ghost" onClick={deselectAllPages}>
-                                Deselect All
-                            </button>
+                {/* Warning */}
+                {pagesToDelete.length > 0 && (
+                    <div className="tool-section">
+                        <div className="warning-box">
+                            <AlertTriangle size={18} />
+                            <span>
+                                {pagesToDelete.length} page{pagesToDelete.length > 1 ? 's' : ''} selected for deletion.
+                                {pagesRemaining} page{pagesRemaining !== 1 ? 's' : ''} will remain.
+                            </span>
                         </div>
                     </div>
+                )}
 
-                    {pagesToDelete.length >= activeDocument.pageCount - 1 && (
-                        <div className="warning-banner">
-                            <AlertTriangle size={16} />
-                            <span>At least one page must remain in the document.</span>
-                        </div>
-                    )}
+                {/* Quick Actions */}
+                <div className="tool-section">
+                    <div className="quick-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={selectAll}>
+                            Select All (except first)
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={deselectAll}>
+                            Deselect All
+                        </button>
+                    </div>
+                </div>
 
-                    <div className="page-grid">
-                        {Array.from({ length: activeDocument.pageCount }, (_, i) => i + 1).map(pageNum => {
+                {/* Page Grid */}
+                <div className="tool-section">
+                    <h3 className="section-title">Click pages to select for deletion</h3>
+
+                    <div className="page-grid page-grid-compact">
+                        {Array.from({ length: activeDocument.pageCount }, (_, i) => {
+                            const pageNum = i + 1;
                             const isMarkedForDeletion = pagesToDelete.includes(pageNum);
 
                             return (
                                 <div
                                     key={pageNum}
-                                    className={`page-grid-item ${isMarkedForDeletion ? 'marked-delete' : ''}`}
-                                    onClick={() => togglePageSelection(pageNum)}
+                                    className={`page-grid-item compact selectable ${isMarkedForDeletion ? 'selected delete-marked' : ''}`}
+                                    onClick={() => togglePageForDeletion(pageNum)}
                                 >
                                     {isMarkedForDeletion && (
                                         <div className="page-grid-check delete">
                                             <Trash2 size={12} />
                                         </div>
                                     )}
-
-                                    <div className="page-grid-thumb">
-                                        {thumbnails[pageNum - 1] ? (
-                                            <img src={thumbnails[pageNum - 1]} alt={`Page ${pageNum}`} />
-                                        ) : (
-                                            <div className="page-grid-skeleton" />
-                                        )}
+                                    <div className={`page-grid-thumb compact ${isMarkedForDeletion ? 'faded' : ''}`}>
+                                        <img
+                                            src={getPlaceholder(pageNum)}
+                                            alt={`Page ${pageNum}`}
+                                            loading="lazy"
+                                        />
                                     </div>
-
-                                    <span className="page-grid-number">{pageNum}</span>
+                                    <span className="page-grid-number">Page {pageNum}</span>
                                 </div>
                             );
                         })}
@@ -201,19 +182,19 @@ export function DeletePagesTool() {
 
             <div className="tool-footer">
                 <div className="tool-summary">
-                    <span className="summary-stat delete-stat">
+                    <span className="summary-stat">
                         <strong>{pagesToDelete.length}</strong> to delete
                     </span>
                     <span className="summary-divider">•</span>
                     <span className="summary-stat">
-                        <strong>{remainingPages}</strong> remaining
+                        <strong>{pagesRemaining}</strong> will remain
                     </span>
                 </div>
 
                 <button
-                    className="btn btn-danger btn-lg"
+                    className="btn btn-primary btn-danger"
                     onClick={handleDelete}
-                    disabled={isProcessing || pagesToDelete.length === 0 || remainingPages < 1}
+                    disabled={isProcessing || pagesToDelete.length === 0 || pagesRemaining < 1}
                 >
                     {isProcessing ? (
                         <>
@@ -222,7 +203,7 @@ export function DeletePagesTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
+                            <Trash2 size={18} />
                             Delete & Download
                         </>
                     )}
