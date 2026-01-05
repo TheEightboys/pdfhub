@@ -1,0 +1,75 @@
+/**
+ * QuickAccessBar Styles
+ * Horizontal toolbar below ribbon for quick actions
+ */
+
+.quick-access-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .quick-access-bar {
+    background: var(--bg-secondary);
+}
+
+.quick-access-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding-right: 10px;
+    border-right: 1px solid var(--border-light);
+}
+
+.quick-access-tools {
+    display: flex;
+    gap: 2px;
+}
+
+.quick-tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.quick-tool-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.quick-tool-btn.active {
+    background: var(--accent-bg);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .quick-access-bar {
+        padding: 4px 12px;
+        gap: 6px;
+    }
+
+    .quick-access-label {
+        display: none;
+    }
+
+    .quick-tool-btn {
+        width: 28px;
+        height: 28px;
+    }
+}

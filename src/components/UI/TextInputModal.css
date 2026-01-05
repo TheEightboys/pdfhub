@@ -1,0 +1,201 @@
+/**
+ * TextInputModal Styles
+ */
+
+.text-input-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.10s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.text-input-modal {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+    overflow: hidden;
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+[data-theme="dark"] .text-input-modal {
+    background: #1f1f1f;
+    border: 1px solid #333;
+}
+
+.text-input-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f8f8f8;
+}
+
+[data-theme="dark"] .text-input-header {
+    background: #2a2a2a;
+    border-bottom-color: #333;
+}
+
+.text-input-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+[data-theme="dark"] .text-input-title {
+    color: #eee;
+}
+
+.text-input-title svg {
+    color: #dc2626;
+}
+
+.text-input-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.text-input-close:hover {
+    background: #e5e5e5;
+    color: #333;
+}
+
+[data-theme="dark"] .text-input-close:hover {
+    background: #333;
+    color: #fff;
+}
+
+.text-input-body {
+    padding: 20px;
+}
+
+.text-input-field {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    color: #333;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.text-input-field:focus {
+    border-color: #dc2626;
+}
+
+[data-theme="dark"] .text-input-field {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #eee;
+}
+
+[data-theme="dark"] .text-input-field:focus {
+    border-color: #ef4444;
+}
+
+.text-input-field::placeholder {
+    color: #999;
+}
+
+.text-input-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.text-input-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.text-input-btn.cancel {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.text-input-btn.cancel:hover {
+    background: #e5e5e5;
+    color: #333;
+}
+
+[data-theme="dark"] .text-input-btn.cancel {
+    background: #333;
+    color: #aaa;
+}
+
+[data-theme="dark"] .text-input-btn.cancel:hover {
+    background: #444;
+    color: #fff;
+}
+
+.text-input-btn.confirm {
+    background: #dc2626;
+    color: white;
+}
+
+.text-input-btn.confirm:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.text-input-btn.confirm:disabled {
+    background: #ccc;
+    color: #888;
+    cursor: not-allowed;
+}
+
+[data-theme="dark"] .text-input-btn.confirm:disabled {
+    background: #444;
+    color: #666;
+}

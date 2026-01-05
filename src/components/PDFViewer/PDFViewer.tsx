@@ -12,6 +12,7 @@ import {
     ZoomOut,
 } from 'lucide-react';
 import './PDFViewer.css';
+import { TextInputModal } from '../UI/TextInputModal';
 import {
     Annotation,
     FreehandAnnotation,
@@ -52,6 +53,15 @@ export function PDFViewer() {
     const observerRef = useRef<IntersectionObserver | null>(null);
     const pendingRendersRef = useRef<Set<number>>(new Set());
     const renderedPagesRef = useRef<Record<number, string>>({});
+
+    // Text Input Modal State
+    const [textModalOpen, setTextModalOpen] = useState(false);
+    const [textModalConfig, setTextModalConfig] = useState<{
+        title: string;
+        placeholder: string;
+        defaultValue: string;
+        onConfirm: (value: string) => void;
+    } | null>(null);
 
     // Sync ref
     useEffect(() => { renderedPagesRef.current = renderedPages; }, [renderedPages]);
@@ -276,36 +286,50 @@ export function PDFViewer() {
             addAnnotation(newStamp);
         }
         else if (activeTool === 'notes') {
-            // Prompt user for note content
-            const noteText = prompt('Enter note text:', '');
-            const newNote: NoteAnnotation = {
-                id: `note-${Date.now()}`,
-                type: 'note',
-                content: noteText || '',
-                isOpen: true,
-                pageNumber: pageNum,
-                x: point.x, y: point.y, width: 5, height: 5,
-                rotation: 0, opacity: 1, color: toolOptions.noteColor || '#fef08a',
-                createdAt: new Date(), updatedAt: new Date()
-            };
-            addAnnotation(newNote);
+            // Open modal for note input
+            setTextModalConfig({
+                title: 'Add Note',
+                placeholder: 'Enter note text...',
+                defaultValue: '',
+                onConfirm: (noteText: string) => {
+                    const newNote: NoteAnnotation = {
+                        id: `note-${Date.now()}`,
+                        type: 'note',
+                        content: noteText,
+                        isOpen: true,
+                        pageNumber: pageNum,
+                        x: point.x, y: point.y, width: 5, height: 5,
+                        rotation: 0, opacity: 1, color: toolOptions.noteColor || '#fef08a',
+                        createdAt: new Date(), updatedAt: new Date()
+                    };
+                    addAnnotation(newNote);
+                    setTextModalOpen(false);
+                }
+            });
+            setTextModalOpen(true);
         }
         else if (activeTool === 'add-text') {
-            // Prompt user for text
-            const userText = prompt('Enter your text:', '');
-            if (userText && userText.trim()) {
-                const newText: TextAnnotation = {
-                    id: `text-${Date.now()}`,
-                    type: 'text',
-                    content: userText.trim(),
-                    pageNumber: pageNum,
-                    x: point.x, y: point.y, width: 20, height: 5,
-                    rotation: 0, opacity: 1, color: toolOptions.drawColor || '#000000',
-                    createdAt: new Date(), updatedAt: new Date(),
-                    fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left'
-                };
-                addAnnotation(newText);
-            }
+            // Open modal for text input
+            setTextModalConfig({
+                title: 'Add Text',
+                placeholder: 'Enter your text...',
+                defaultValue: '',
+                onConfirm: (userText: string) => {
+                    const newText: TextAnnotation = {
+                        id: `text-${Date.now()}`,
+                        type: 'text',
+                        content: userText,
+                        pageNumber: pageNum,
+                        x: point.x, y: point.y, width: 20, height: 5,
+                        rotation: 0, opacity: 1, color: toolOptions.drawColor || '#000000',
+                        createdAt: new Date(), updatedAt: new Date(),
+                        fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left'
+                    };
+                    addAnnotation(newText);
+                    setTextModalOpen(false);
+                }
+            });
+            setTextModalOpen(true);
         }
     };
 
@@ -410,10 +434,17 @@ export function PDFViewer() {
 
                     const handleNoteClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
-                        const newContent = prompt('Edit note:', noteContent);
-                        if (newContent !== null) {
-                            updateAnnotation(ann.id, { content: newContent } as any);
-                        }
+                        setTextModalConfig({
+                            title: 'Edit Note',
+                            placeholder: 'Edit note text...',
+                            defaultValue: noteContent,
+                            onConfirm: (newContent: string) => {
+                                updateAnnotation(ann.id, { content: newContent } as any);
+                                setTextModalOpen(false);
+                                setTextModalConfig(null);
+                            }
+                        });
+                        setTextModalOpen(true);
                     };
 
                     // Truncate long text for display
@@ -478,10 +509,17 @@ export function PDFViewer() {
 
                     const handleTextClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
-                        const newText = prompt('Edit text:', textContent);
-                        if (newText !== null) {
-                            updateAnnotation(ann.id, { content: newText } as any);
-                        }
+                        setTextModalConfig({
+                            title: 'Edit Text',
+                            placeholder: 'Edit your text...',
+                            defaultValue: textContent,
+                            onConfirm: (newText: string) => {
+                                updateAnnotation(ann.id, { content: newText } as any);
+                                setTextModalOpen(false);
+                                setTextModalConfig(null);
+                            }
+                        });
+                        setTextModalOpen(true);
                     };
 
                     return (
@@ -519,109 +557,163 @@ export function PDFViewer() {
 
     if (!activeDocument) return null;
 
-    return (
-        <div className="pdf-viewer">
-            {/* Toolbar */}
-            <div className="viewer-toolbar">
-                <div className="toolbar-left">
-                    <button onClick={zoomOut} className="btn-tool"><ZoomOut size={18} /></button>
-                    <span className="zoom-level">{zoom}%</span>
-                    <button onClick={zoomIn} className="btn-tool"><ZoomIn size={18} /></button>
-                </div>
-                <div className="toolbar-center">
-                    <span className="page-info">
-                        Page {selectedPages[0] || 1} / {activeDocument.pageCount}
-                    </span>
-                </div>
-            </div>
+    // Scroll to a specific page
+    const scrollToPage = (pageNum: number) => {
+        const pageElement = document.querySelector(`[data-page-number="${pageNum}"]`);
+        if (pageElement) {
+            pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 
-            {/* Viewer Content */}
-            <div className="viewer-content">
-                <div className="documents-container" ref={containerRef}>
+    return (
+        <div className="pdf-viewer-layout">
+            {/* Left Thumbnail Panel */}
+            <div className="thumbnail-panel">
+                <div className="thumbnail-list">
                     {activeDocument.pages.map((page) => (
-                        <div key={page.pageNumber} className="page-wrapper" data-page-number={page.pageNumber}>
-                            <div
-                                className={getPageClasses()}
-                                style={{
-                                    width: `${page.width * (zoom / 100)}px`,
-                                    height: `${page.height * (zoom / 100)}px`,
-                                    position: 'relative'
-                                }}
-                                onMouseDown={(e) => handleMouseDown(page.pageNumber, e)}
-                                onMouseMove={handleMouseMove}
-                                onMouseUp={() => handleMouseUp(page.pageNumber)}
-                                onMouseLeave={() => handleMouseUp(page.pageNumber)}
-                            >
-                                {/* PDF Image Layer */}
+                        <div
+                            key={page.pageNumber}
+                            className={`thumbnail-item ${selectedPages.includes(page.pageNumber) ? 'active' : ''}`}
+                            onClick={() => scrollToPage(page.pageNumber)}
+                        >
+                            <div className="thumbnail-preview">
                                 {renderedPages[page.pageNumber] ? (
                                     <img
                                         src={renderedPages[page.pageNumber]}
                                         alt={`Page ${page.pageNumber}`}
-                                        className="page-image"
                                         draggable={false}
-                                        style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
                                     />
                                 ) : (
-                                    <div className="page-placeholder loading"></div>
+                                    <div className="thumbnail-placeholder">
+                                        <span>{page.pageNumber}</span>
+                                    </div>
                                 )}
-
-                                {/* Annotations Layer */}
-                                <svg
-                                    className="annotations-overlay"
-                                    viewBox="0 0 100 100"
-                                    preserveAspectRatio="none"
-                                    style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        height: '100%',
-                                        pointerEvents: 'none'
-                                    }}
-                                >
-                                    {/* SVG Filters */}
-                                    <defs>
-                                        <filter id="noteShadow" x="-20%" y="-20%" width="140%" height="140%">
-                                            <feDropShadow dx="0.1" dy="0.1" stdDeviation="0.2" floodOpacity="0.3" />
-                                        </filter>
-                                    </defs>
-
-                                    {renderAnnotations(page.annotations)}
-
-                                    {/* Drawing Preview */}
-                                    {isDrawing && currentStroke.length > 1 && (
-                                        <path
-                                            d={currentStroke.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
-                                            stroke={activeTool === 'signature' ? '#000000' : toolOptions.drawColor}
-                                            strokeWidth={activeTool === 'signature' ? 2 : toolOptions.drawWidth}
-                                            fill="none"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    )}
-
-                                    {/* Region Preview */}
-                                    {isSelectingRegion && currentRegion && (
-                                        <rect
-                                            x={Math.min(currentRegion.startX, currentRegion.endX)}
-                                            y={Math.min(currentRegion.startY, currentRegion.endY)}
-                                            width={Math.abs(currentRegion.endX - currentRegion.startX)}
-                                            height={Math.abs(currentRegion.endY - currentRegion.startY)}
-                                            fill={activeTool === 'highlight' ? toolOptions.drawColor || '#FFFF00' : '#000000'}
-                                            fillOpacity={0.4}
-                                        />
-                                    )}
-                                </svg>
                             </div>
+                            <span className="thumbnail-label">{page.pageNumber}</span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {isLoading && (
-                <div className="viewer-loading">
-                    Loading... {loadingProgress}%
+            {/* Main Viewer Area */}
+            <div className="pdf-viewer">
+                {/* Toolbar */}
+                <div className="viewer-toolbar">
+                    <div className="toolbar-left">
+                        <button onClick={zoomOut} className="btn-tool"><ZoomOut size={18} /></button>
+                        <span className="zoom-level">{zoom}%</span>
+                        <button onClick={zoomIn} className="btn-tool"><ZoomIn size={18} /></button>
+                    </div>
+                    <div className="toolbar-center">
+                        <span className="page-info">
+                            Page {selectedPages[0] || 1} / {activeDocument.pageCount}
+                        </span>
+                    </div>
                 </div>
+
+                {/* Viewer Content */}
+                <div className="viewer-content">
+                    <div className="documents-container" ref={containerRef}>
+                        {activeDocument.pages.map((page) => (
+                            <div key={page.pageNumber} className="page-wrapper" data-page-number={page.pageNumber}>
+                                <div
+                                    className={getPageClasses()}
+                                    style={{
+                                        width: `${page.width * (zoom / 100)}px`,
+                                        height: `${page.height * (zoom / 100)}px`,
+                                        position: 'relative'
+                                    }}
+                                    onMouseDown={(e) => handleMouseDown(page.pageNumber, e)}
+                                    onMouseMove={handleMouseMove}
+                                    onMouseUp={() => handleMouseUp(page.pageNumber)}
+                                    onMouseLeave={() => handleMouseUp(page.pageNumber)}
+                                >
+                                    {/* PDF Image Layer */}
+                                    {renderedPages[page.pageNumber] ? (
+                                        <img
+                                            src={renderedPages[page.pageNumber]}
+                                            alt={`Page ${page.pageNumber}`}
+                                            className="page-image"
+                                            draggable={false}
+                                            style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                                        />
+                                    ) : (
+                                        <div className="page-placeholder loading"></div>
+                                    )}
+
+                                    {/* Annotations Layer */}
+                                    <svg
+                                        className="annotations-overlay"
+                                        viewBox="0 0 100 100"
+                                        preserveAspectRatio="none"
+                                        style={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            pointerEvents: 'none'
+                                        }}
+                                    >
+                                        {/* SVG Filters */}
+                                        <defs>
+                                            <filter id="noteShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feDropShadow dx="0.1" dy="0.1" stdDeviation="0.2" floodOpacity="0.3" />
+                                            </filter>
+                                        </defs>
+
+                                        {renderAnnotations(page.annotations)}
+
+                                        {/* Drawing Preview */}
+                                        {isDrawing && currentStroke.length > 1 && (
+                                            <path
+                                                d={currentStroke.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
+                                                stroke={activeTool === 'signature' ? '#000000' : toolOptions.drawColor}
+                                                strokeWidth={activeTool === 'signature' ? 2 : toolOptions.drawWidth}
+                                                fill="none"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
+                                        )}
+
+                                        {/* Region Preview */}
+                                        {isSelectingRegion && currentRegion && (
+                                            <rect
+                                                x={Math.min(currentRegion.startX, currentRegion.endX)}
+                                                y={Math.min(currentRegion.startY, currentRegion.endY)}
+                                                width={Math.abs(currentRegion.endX - currentRegion.startX)}
+                                                height={Math.abs(currentRegion.endY - currentRegion.startY)}
+                                                fill={activeTool === 'highlight' ? toolOptions.drawColor || '#FFFF00' : '#000000'}
+                                                fillOpacity={0.4}
+                                            />
+                                        )}
+                                    </svg>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {isLoading && (
+                    <div className="viewer-loading">
+                        Loading... {loadingProgress}%
+                    </div>
+                )}
+            </div>
+
+            {/* Text Input Modal */}
+            {textModalConfig && (
+                <TextInputModal
+                    isOpen={textModalOpen}
+                    title={textModalConfig.title}
+                    placeholder={textModalConfig.placeholder}
+                    defaultValue={textModalConfig.defaultValue}
+                    onConfirm={textModalConfig.onConfirm}
+                    onCancel={() => {
+                        setTextModalOpen(false);
+                        setTextModalConfig(null);
+                    }}
+                />
             )}
         </div>
     );

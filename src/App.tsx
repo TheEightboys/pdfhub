@@ -5,8 +5,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppProvider, ToastProvider, useApp, useToast } from './store/appStore';
-import { Header } from './components/Layout/Header';
-import { Sidebar } from './components/Layout/Sidebar';
+import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
 import { WelcomeScreen } from './components/WelcomeScreen/WelcomeScreen';
 import { ToolPanel } from './components/Tools/ToolPanel';
@@ -134,13 +133,11 @@ function AppContent() {
                 style={{ display: 'none' }}
             />
 
-            {/* Header */}
-            <Header onOpenFile={() => fileInputRef.current?.click()} />
+            {/* Word-like Ribbon Toolbar */}
+            <RibbonToolbar onOpenFile={() => fileInputRef.current?.click()} />
 
             {/* Main Content Area */}
-            <div className="app-main">
-                {/* Left Sidebar - Tool Categories (shows when document loaded OR when tool is active) */}
-                {(activeDocument || activeTool) && <Sidebar />}
+            <div className="app-main word-layout">
 
                 {/* Center - PDF Viewer, Welcome Screen, or Empty State with Upload Prompt */}
                 <div className="app-content">
@@ -218,9 +215,9 @@ function AppContent() {
                     )}
                 </div>
 
-                {/* Right Sidebar - Tool Panel (Fixed, shows when tool is active AND document exists) */}
-                {activeDocument && activeTool && (
-                    <div className="right-tool-panel">
+                {/* Tool Panel - Slides in from right when a tool is active */}
+                {activeTool && (
+                    <div className="tool-panel-overlay">
                         <ToolPanel />
                     </div>
                 )}

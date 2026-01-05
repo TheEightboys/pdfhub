@@ -667,3 +667,115 @@ svg {
         padding: 8px 12px;
     }
 }
+
+/* ========== RIBBON LAYOUT ========== */
+.app-main.ribbon-layout,
+.app-main.word-layout {
+    flex-direction: column;
+    position: relative;
+}
+
+.app-main.ribbon-layout .app-content,
+.app-main.word-layout .app-content {
+    flex: 1;
+    overflow: auto;
+}
+
+/* Tool Panel Overlay - Slides in from right */
+.tool-panel-overlay {
+    position: fixed;
+    top: 180px;
+    right: 16px;
+    bottom: 16px;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    background: var(--bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
+    z-index: 90;
+    overflow: hidden;
+    animation: slideInRight 0.25s ease;
+}
+
+[data-theme="dark"] .tool-panel-overlay {
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-color);
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.tool-panel-overlay .tool-panel-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    box-shadow: none;
+    border-radius: 0;
+    border: none;
+}
+
+.tool-panel-overlay .tool-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.tool-panel-overlay .tool-header {
+    flex-shrink: 0;
+    padding: 16px 20px 12px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tool-panel-overlay .tool-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+}
+
+.tool-panel-overlay .tool-footer {
+    flex-shrink: 0;
+    padding: 12px 20px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+}
+
+/* Responsive adjustments for tool panel overlay */
+@media (max-width: 768px) {
+    .tool-panel-overlay {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: none;
+        max-height: 70vh;
+        border-radius: 16px 16px 0 0;
+        animation: slideInBottom 0.25s ease;
+    }
+
+    @keyframes slideInBottom {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}

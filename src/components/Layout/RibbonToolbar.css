@@ -1,0 +1,282 @@
+/**
+ * Compact Ribbon Toolbar Styles
+ * Improved size and visual appearance
+ */
+
+.ribbon {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+/* ========== HEADER ROW - Slightly larger ========== */
+.ribbon-header {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 16px;
+    background: linear-gradient(180deg, #c92a2a 0%, #b91c1c 100%);
+    color: white;
+}
+
+[data-theme="dark"] .ribbon-header {
+    background: linear-gradient(180deg, #1f1f1f 0%, #171717 100%);
+}
+
+.ribbon-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ribbon-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.ribbon-doc-name {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.ribbon-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ribbon-action {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ribbon-action:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.ribbon-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ribbon-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ribbon-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.ribbon-icon-btn.close:hover {
+    background: #ef4444;
+}
+
+/* ========== TAB STRIP - Larger and more prominent ========== */
+.ribbon-tabs {
+    display: flex;
+    height: 34px;
+    padding: 0 12px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    gap: 4px;
+    align-items: flex-end;
+}
+
+[data-theme="dark"] .ribbon-tabs {
+    background: #1a1a1a;
+}
+
+.ribbon-tab {
+    padding: 7px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ribbon-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.ribbon-tab.active {
+    color: #dc2626;
+    border-bottom-color: #dc2626;
+    background: var(--bg-primary);
+}
+
+[data-theme="dark"] .ribbon-tab.active {
+    color: #ef4444;
+    border-bottom-color: #ef4444;
+}
+
+/* ========== RIBBON CONTENT - Larger tool groups ========== */
+.ribbon-content {
+    display: flex;
+    height: 75px;
+    padding: 6px 12px;
+    background: var(--bg-primary);
+    gap: 0;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-light);
+}
+
+[data-theme="dark"] .ribbon-content {
+    background: #242424;
+    border-bottom-color: #333;
+}
+
+/* ========== TOOL GROUP ========== */
+.ribbon-group {
+    display: flex;
+    flex-direction: column;
+    padding: 0 14px;
+    border-right: 1px solid var(--border-light);
+}
+
+.ribbon-group:last-child {
+    border-right: none;
+}
+
+.ribbon-group-tools {
+    display: flex;
+    flex: 1;
+    align-items: flex-start;
+    gap: 3px;
+    padding-top: 4px;
+}
+
+.ribbon-group-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 4px 0 2px;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+/* ========== TOOL BUTTON - Larger and clearer ========== */
+.ribbon-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 10px;
+    min-width: 50px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ribbon-tool:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: var(--border-color);
+}
+
+.ribbon-tool.active {
+    background: #fee2e2;
+    border-color: #dc2626;
+}
+
+[data-theme="dark"] .ribbon-tool.active {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: #ef4444;
+}
+
+.ribbon-tool:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.ribbon-tool svg {
+    color: var(--text-primary);
+    width: 20px;
+    height: 20px;
+}
+
+.ribbon-tool span {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.ribbon-tool.active span {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .ribbon-tool.active span {
+    color: #ef4444;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 900px) {
+    .ribbon-content {
+        height: 65px;
+    }
+
+    .ribbon-tool {
+        min-width: 42px;
+        padding: 4px 6px;
+    }
+
+    .ribbon-tool svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (max-width: 600px) {
+    .ribbon-tool span {
+        display: none;
+    }
+
+    .ribbon-action span {
+        display: none;
+    }
+
+    .ribbon-doc-name {
+        display: none;
+    }
+}
