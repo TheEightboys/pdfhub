@@ -9,7 +9,7 @@ import { ToolId } from '../../types';
 import {
     Upload, FileText, Save, Undo2, Redo2,
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
-    Minimize2, Image, FileImage, FileType, FileSpreadsheet,
+    Minimize2, Image, FileImage, FileType, FileSpreadsheet, Presentation,
     Type, ImagePlus, Crop, Maximize, Palette, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
     Lock, Unlock, EyeOff,
@@ -136,6 +136,7 @@ const RIBBON_TABS: RibbonTab[] = [
                 name: 'Import',
                 tools: [
                     { id: 'image-to-pdf', name: 'From Images', icon: <FileImage size={20} />, requiresDoc: false },
+                    { id: 'ppt-to-pdf', name: 'From PPT', icon: <Presentation size={20} />, requiresDoc: false },
                 ],
             },
         ],

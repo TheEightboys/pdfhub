@@ -9,7 +9,7 @@ import { useApp } from '../../store/appStore';
 import { ToolId, ToolCategory, Tool } from '../../types';
 import {
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
-    Minimize2, Image, FileImage, FileType, FileSpreadsheet,
+    Minimize2, Image, FileImage, FileType, FileSpreadsheet, Presentation,
     Type, ImagePlus, Crop, Maximize, Palette, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
     Lock, Unlock, EyeOff,
@@ -33,6 +33,7 @@ const TOOLS: Tool[] = [
     { id: 'image-to-pdf', name: 'Images to PDF', description: 'Create PDF from images', icon: 'image-to-pdf', category: 'convert', isPremium: false },
     { id: 'pdf-to-word', name: 'PDF to Word', description: 'Convert to DOCX', icon: 'pdf-to-word', category: 'convert', isPremium: false },
     { id: 'pdf-to-excel', name: 'PDF to Excel', description: 'Convert to XLSX', icon: 'pdf-to-excel', category: 'convert', isPremium: false },
+    { id: 'ppt-to-pdf', name: 'PPT to PDF', description: 'Convert presentations', icon: 'ppt-to-pdf', category: 'convert', isPremium: false },
     // Edit
     { id: 'add-text', name: 'Add Text', description: 'Place text on PDF', icon: 'add-text', category: 'edit', isPremium: false },
     { id: 'add-image', name: 'Add Image', description: 'Insert images', icon: 'add-image', category: 'edit', isPremium: false },
@@ -82,6 +83,7 @@ const getToolIcon = (iconName: string, size: number = 20) => {
         extract: <FileOutput size={size} />, compress: <Minimize2 size={size} />,
         'pdf-to-image': <Image size={size} />, 'image-to-pdf': <FileImage size={size} />,
         'pdf-to-word': <FileType size={size} />, 'pdf-to-excel': <FileSpreadsheet size={size} />,
+        'ppt-to-pdf': <Presentation size={size} />,
         'add-text': <Type size={size} />, 'add-image': <ImagePlus size={size} />,
         crop: <Crop size={size} />, resize: <Maximize size={size} />, background: <Palette size={size} />,
         highlight: <Highlighter size={size} />, draw: <Pencil size={size} />, erase: <Eraser size={size} />, shapes: <Shapes size={size} />,
@@ -108,7 +110,7 @@ export function Sidebar() {
     };
 
     const handleToolClick = (tool: Tool) => {
-        const noDocRequired: ToolId[] = ['merge', 'image-to-pdf'];
+        const noDocRequired: ToolId[] = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
         if (!noDocRequired.includes(tool.id) && !activeDocument) return;
         setActiveTool(tool.id);
     };
@@ -149,7 +151,7 @@ export function Sidebar() {
                                     <div className="sidebar-tools">
                                         {tools.map(tool => {
                                             const isActive = activeTool === tool.id;
-                                            const isDisabled = !['merge', 'image-to-pdf'].includes(tool.id) && !activeDocument;
+                                            const isDisabled = !['merge', 'image-to-pdf', 'ppt-to-pdf'].includes(tool.id) && !activeDocument;
                                             return (
                                                 <button key={tool.id} className={`sidebar-tool ${isActive ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
                                                     onClick={() => handleToolClick(tool)} disabled={isDisabled} title={tool.name}>

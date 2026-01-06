@@ -18,7 +18,7 @@ const TOOL_COLORS: Record<string, string> = {
     'merge': '#dc2626', 'split': '#dc2626', 'rotate': '#dc2626', 'delete': '#dc2626',
     'reorder': '#dc2626', 'duplicate': '#dc2626', 'extract': '#dc2626',
     'compress': '#16a34a', 'pdf-to-image': '#0891b2', 'image-to-pdf': '#0891b2',
-    'pdf-to-word': '#2563eb', 'pdf-to-excel': '#16a34a',
+    'pdf-to-word': '#2563eb', 'pdf-to-excel': '#16a34a', 'ppt-to-pdf': '#ea580c',
     'add-text': '#dc2626', 'add-image': '#dc2626', 'crop': '#dc2626',
     'resize': '#dc2626', 'background': '#dc2626',
     'highlight': '#eab308', 'draw': '#7c3aed', 'shapes': '#7c3aed',
@@ -52,7 +52,7 @@ export function EditorToolsPanel({ className = '' }: EditorToolsPanelProps) {
     });
 
     const handleToolClick = (tool: Tool) => {
-        const noDocRequired: ToolId[] = ['merge', 'image-to-pdf'];
+        const noDocRequired: ToolId[] = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
         if (!noDocRequired.includes(tool.id) && !activeDocument) {
             // Tool will be activated, but App.tsx will show upload prompt
         }

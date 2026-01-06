@@ -31,6 +31,7 @@ import { StickyNotesTool } from './StickyNotesTool';
 // Conversion tools
 import { PDFToWordTool } from './PDFToWord';
 import { PDFToExcelTool } from './PDFToExcel';
+import { PPTToPDFTool } from './PPTToPDF';
 // Edit tools
 import { CropPagesTool } from './CropPagesTool';
 import { ResizePagesTool } from './ResizePagesTool';
@@ -87,6 +88,8 @@ export function ToolPanel() {
                 return <PDFToWordTool />;
             case 'pdf-to-excel':
                 return <PDFToExcelTool />;
+            case 'ppt-to-pdf':
+                return <PPTToPDFTool />;
 
             // Edit Tools
             case 'add-text':

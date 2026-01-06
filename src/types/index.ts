@@ -165,6 +165,7 @@ export type ToolId =
     | 'pdf-to-word'
     | 'pdf-to-excel'
     | 'pdf-to-ppt'
+    | 'ppt-to-pdf'
     | 'html-to-pdf'
     | 'word-to-pdf'
     // Edit

@@ -140,64 +140,89 @@ function AppContent() {
             <div className="app-main editor-layout">
                 {/* Left/Center - PDF Viewer or compact Upload Prompt */}
                 <div className="app-content">
-                    {activeDocument ? (
+                {activeDocument ? (
                         <PDFViewer />
                     ) : (
-                        /* Compact upload prompt */
-                        <div className="editor-upload-prompt compact">
-                            <div className="upload-prompt-content">
-                                {/* Small Icon */}
-                                <div className="upload-prompt-illustration">
-                                    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-                                        <circle cx="40" cy="40" r="38" fill="url(#bgGradient)" />
-                                        <rect x="22" y="18" width="32" height="42" rx="4" fill="white" stroke="#dc2626" strokeWidth="2" />
-                                        <path d="M46 18 L54 26 L46 26 Z" fill="#fecaca" stroke="#dc2626" strokeWidth="1.5" />
-                                        <rect x="28" y="32" width="18" height="3" rx="1.5" fill="#e5e7eb" />
-                                        <rect x="28" y="38" width="22" height="2" rx="1" fill="#f3f4f6" />
-                                        <rect x="28" y="44" width="16" height="2" rx="1" fill="#f3f4f6" />
-                                        <circle cx="48" cy="52" r="12" fill="#dc2626" />
-                                        <path d="M48 46 L48 56 M44 50 L48 46 L52 50" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        <defs>
-                                            <linearGradient id="bgGradient" x1="0" y1="0" x2="80" y2="80">
-                                                <stop offset="0%" stopColor="#fef2f2" />
-                                                <stop offset="100%" stopColor="#fee2e2" />
-                                            </linearGradient>
-                                        </defs>
-                                    </svg>
+                        /* Check if a standalone tool is active that doesn't need a PDF */
+                        (() => {
+                            const standaloneTools = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
+                            const isStandaloneTool = activeTool && standaloneTools.includes(activeTool);
+                            
+                            if (isStandaloneTool) {
+                                // Show the tool panel in the main content area
+                                return (
+                                    <div className="standalone-tool-container">
+                                        <ToolPanel />
+                                    </div>
+                                );
+                            }
+                            
+                            // Show compact upload prompt
+                            return (
+                                <div className="editor-upload-prompt compact">
+                                    <div className="upload-prompt-content">
+                                        {/* Small Icon */}
+                                        <div className="upload-prompt-illustration">
+                                            <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                                <circle cx="40" cy="40" r="38" fill="url(#bgGradient)" />
+                                                <rect x="22" y="18" width="32" height="42" rx="4" fill="white" stroke="#dc2626" strokeWidth="2" />
+                                                <path d="M46 18 L54 26 L46 26 Z" fill="#fecaca" stroke="#dc2626" strokeWidth="1.5" />
+                                                <rect x="28" y="32" width="18" height="3" rx="1.5" fill="#e5e7eb" />
+                                                <rect x="28" y="38" width="22" height="2" rx="1" fill="#f3f4f6" />
+                                                <rect x="28" y="44" width="16" height="2" rx="1" fill="#f3f4f6" />
+                                                <circle cx="48" cy="52" r="12" fill="#dc2626" />
+                                                <path d="M48 46 L48 56 M44 50 L48 46 L52 50" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                <defs>
+                                                    <linearGradient id="bgGradient" x1="0" y1="0" x2="80" y2="80">
+                                                        <stop offset="0%" stopColor="#fef2f2" />
+                                                        <stop offset="100%" stopColor="#fee2e2" />
+                                                    </linearGradient>
+                                                </defs>
+                                            </svg>
+                                        </div>
+
+                                        <h2 className="upload-prompt-title">Upload a PDF</h2>
+                                        <p className="upload-prompt-desc">
+                                            Select a tool from the right panel, then upload your PDF.
+                                        </p>
+
+                                        <button
+                                            className="btn btn-primary upload-prompt-btn"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                <polyline points="17 8 12 3 7 8" />
+                                                <line x1="12" y1="3" x2="12" y2="15" />
+                                            </svg>
+                                            Choose PDF
+                                        </button>
+
+                                        <span className="upload-prompt-hint">or drag & drop</span>
+                                    </div>
                                 </div>
-
-                                <h2 className="upload-prompt-title">Upload a PDF</h2>
-                                <p className="upload-prompt-desc">
-                                    Select a tool from the right panel, then upload your PDF.
-                                </p>
-
-                                <button
-                                    className="btn btn-primary upload-prompt-btn"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="17 8 12 3 7 8" />
-                                        <line x1="12" y1="3" x2="12" y2="15" />
-                                    </svg>
-                                    Choose PDF
-                                </button>
-
-                                <span className="upload-prompt-hint">or drag & drop</span>
-                            </div>
-                        </div>
+                            );
+                        })()
                     )}
                 </div>
 
                 {/* Right Side - Editor Tools Panel */}
                 <EditorToolsPanel />
 
-                {/* Tool Panel - Slides in from right when a tool is active */}
-                {activeTool && (
-                    <div className="tool-panel-overlay">
-                        <ToolPanel />
-                    </div>
-                )}
+                {/* Tool Panel - Slides in from right when a tool is active (except standalone tools without doc) */}
+                {activeTool && (() => {
+                    const standaloneTools = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
+                    const isStandaloneTool = standaloneTools.includes(activeTool);
+                    // Show overlay only if there's a document OR it's not a standalone tool
+                    if (activeDocument || !isStandaloneTool) {
+                        return (
+                            <div className="tool-panel-overlay">
+                                <ToolPanel />
+                            </div>
+                        );
+                    }
+                    return null;
+                })()}
             </div>
 
             {/* Loading Overlay - Windows/Android Style Dots */}
