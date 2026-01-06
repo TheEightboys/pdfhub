@@ -32,7 +32,8 @@ export function PDFViewer() {
         zoomIn,
         zoomOut,
         addAnnotation,
-        updateAnnotation
+        updateAnnotation,
+        deleteAnnotation
     } = useApp();
 
     const { activeDocument, zoom, viewMode, selectedPages, activeTool, toolOptions } = state;
@@ -62,6 +63,30 @@ export function PDFViewer() {
         defaultValue: string;
         onConfirm: (value: string) => void;
     } | null>(null);
+
+    // Annotation Selection & Manipulation State
+    const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+    const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
+    const [dragOffset, setDragOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
+    // Keyboard handler for Delete key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
+                // Don't delete if user is typing in an input
+                if (document.activeElement?.tagName === 'INPUT' || 
+                    document.activeElement?.tagName === 'TEXTAREA') {
+                    return;
+                }
+                e.preventDefault();
+                deleteAnnotation(selectedAnnotationId);
+                setSelectedAnnotationId(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedAnnotationId, deleteAnnotation]);
 
     // Sync ref
     useEffect(() => { renderedPagesRef.current = renderedPages; }, [renderedPages]);
@@ -333,19 +358,58 @@ export function PDFViewer() {
         }
     };
 
+    // --- Annotation Manipulation ---
+    const handleAnnotationSelect = (e: React.MouseEvent, annotationId: string) => {
+        e.stopPropagation();
+        setSelectedAnnotationId(annotationId);
+    };
+
+    const handleAnnotationDragStart = (e: React.MouseEvent, ann: Annotation) => {
+        e.stopPropagation();
+        const target = e.currentTarget as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        const pointX = ((e.clientX - rect.left) / rect.width) * 100;
+        const pointY = ((e.clientY - rect.top) / rect.height) * 100;
+        setSelectedAnnotationId(ann.id);
+        setIsDraggingAnnotation(true);
+        setDragOffset({ x: pointX - ann.x, y: pointY - ann.y });
+    };
+
+    const handleAnnotationDragMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!isDraggingAnnotation || !selectedAnnotationId) return;
+        
+        const point = getPoint(e);
+        const newX = Math.max(0, Math.min(100, point.x - dragOffset.x));
+        const newY = Math.max(0, Math.min(100, point.y - dragOffset.y));
+        
+        updateAnnotation(selectedAnnotationId, { x: newX, y: newY } as any);
+    };
+
+    const handleAnnotationDragEnd = () => {
+        setIsDraggingAnnotation(false);
+    };
+
     // --- Mouse Event Handlers ---
     const handleMouseDown = (pageNum: number, e: React.MouseEvent<HTMLDivElement>) => {
+        // If dragging annotation, don't start other actions
+        if (isDraggingAnnotation) return;
+        
         if (activeTool === 'draw' || activeTool === 'signature') {
             startDrawing(e);
         } else if (activeTool === 'highlight' || activeTool === 'redact') {
             startRegion(e);
         } else if (activeTool === 'stamp' || activeTool === 'notes' || activeTool === 'add-text') {
             handlePlacement(pageNum, e);
+        } else if (!activeTool) {
+            // Clicking on page background deselects annotation
+            setSelectedAnnotationId(null);
         }
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (isDrawing) {
+        if (isDraggingAnnotation) {
+            handleAnnotationDragMove(e);
+        } else if (isDrawing) {
             drawMove(e);
         } else if (isSelectingRegion) {
             updateRegion(e);
@@ -353,7 +417,9 @@ export function PDFViewer() {
     };
 
     const handleMouseUp = (pageNum: number) => {
-        if (isDrawing) {
+        if (isDraggingAnnotation) {
+            handleAnnotationDragEnd();
+        } else if (isDrawing) {
             stopDrawing(pageNum);
         } else if (isSelectingRegion) {
             finishRegion(pageNum);
@@ -509,6 +575,12 @@ export function PDFViewer() {
 
                     const handleTextClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
+                        // Single click selects, double click edits
+                        handleAnnotationSelect(e, ann.id);
+                    };
+
+                    const handleTextDoubleClick = (e: React.MouseEvent) => {
+                        e.stopPropagation();
                         setTextModalConfig({
                             title: 'Edit Text',
                             placeholder: 'Edit your text...',
@@ -522,21 +594,45 @@ export function PDFViewer() {
                         setTextModalOpen(true);
                     };
 
+                    const isSelected = selectedAnnotationId === ann.id;
+                    const textWidth = textContent.length * scaledSize * 0.6;
+                    const textHeight = scaledSize * 1.5;
+
                     return (
-                        <text
+                        <g
                             key={ann.id}
-                            x={ann.x}
-                            y={ann.y}
-                            fill={ann.color || '#000000'}
-                            fontSize={scaledSize}
-                            fontFamily={textAnn.fontFamily || 'Arial'}
-                            fontWeight={textAnn.fontWeight || 'normal'}
-                            fontStyle={textAnn.fontStyle || 'normal'}
-                            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                            onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
                             onClick={handleTextClick}
+                            onDoubleClick={handleTextDoubleClick}
                         >
-                            {textContent}
-                        </text>
+                            {/* Selection border */}
+                            {isSelected && (
+                                <rect
+                                    x={ann.x - 0.5}
+                                    y={ann.y - textHeight}
+                                    width={textWidth + 1}
+                                    height={textHeight + 0.5}
+                                    fill="none"
+                                    stroke="#3b82f6"
+                                    strokeWidth="0.15"
+                                    strokeDasharray="0.5,0.3"
+                                    style={{ pointerEvents: 'none' }}
+                                />
+                            )}
+                            <text
+                                x={ann.x}
+                                y={ann.y}
+                                fill={ann.color || '#000000'}
+                                fontSize={scaledSize}
+                                fontFamily={textAnn.fontFamily || 'Arial'}
+                                fontWeight={textAnn.fontWeight || 'normal'}
+                                fontStyle={textAnn.fontStyle || 'normal'}
+                                style={{ pointerEvents: 'auto' }}
+                            >
+                                {textContent}
+                            </text>
+                        </g>
                     );
 
                 default:

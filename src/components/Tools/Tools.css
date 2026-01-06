@@ -988,6 +988,32 @@
     color: #cbd5e1;
 }
 
+/* ========== MERGE INFO ROW ========== */
+.merge-info-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.merge-info-text {
+    font-size: 13px;
+    color: #f59e0b;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: #fef3c7;
+    border-radius: 6px;
+}
+
+[data-theme="dark"] .merge-info-text {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.merge-info-row .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ========== EMPTY STATE ========== */
 .tool-empty {
     display: flex;

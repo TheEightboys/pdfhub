@@ -213,11 +213,34 @@
 /* Category Pills */
 .panel-categories {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 6px;
-    padding: 12px 14px;
+    padding: 10px 14px;
     background: #ffffff;
     border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for cleaner look but keep functionality */
+.panel-categories::-webkit-scrollbar {
+    height: 4px;
+}
+
+.panel-categories::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.panel-categories::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 2px;
+}
+
+.panel-categories::-webkit-scrollbar-thumb:hover {
+    background: #d1d5db;
 }
 
 [data-theme="dark"] .panel-categories {
@@ -225,45 +248,59 @@
     border-bottom-color: #1f2937;
 }
 
+[data-theme="dark"] .panel-categories::-webkit-scrollbar-thumb {
+    background: #374151;
+}
+
+[data-theme="dark"] .panel-categories::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+}
+
 .category-pill {
-    padding: 6px 12px;
-    font-size: 11px;
+    padding: 7px 14px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
-    border: none;
+    letter-spacing: 0.03em;
+    border: 1px solid transparent;
     background: #f3f4f6;
     color: #6b7280;
-    border-radius: 6px;
+    border-radius: 20px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .category-pill:hover {
     background: #fef2f2;
     color: #dc2626;
+    border-color: rgba(220, 38, 38, 0.2);
 }
 
 .category-pill.active {
     background: #dc2626;
     color: white;
-    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+    border-color: #dc2626;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
 }
 
 [data-theme="dark"] .category-pill {
     background: #1f2937;
     color: #9ca3af;
+    border-color: #374151;
 }
 
 [data-theme="dark"] .category-pill:hover {
     background: rgba(220, 38, 38, 0.15);
     color: #f87171;
+    border-color: rgba(220, 38, 38, 0.3);
 }
 
 [data-theme="dark"] .category-pill.active {
     background: #dc2626;
     color: white;
+    border-color: #dc2626;
 }
 
 /* Tools Grid */

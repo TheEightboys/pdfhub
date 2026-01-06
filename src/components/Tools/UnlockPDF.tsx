@@ -19,6 +19,7 @@ export function UnlockPDFTool() {
     const [error, setError] = useState<string | null>(null);
     const [isProtected, setIsProtected] = useState<boolean | null>(null);
     const [checking, setChecking] = useState(true);
+    const [unlockedBytes, setUnlockedBytes] = useState<Uint8Array | null>(null);
 
     // Check if PDF is protected
     useEffect(() => {
@@ -50,25 +51,47 @@ export function UnlockPDFTool() {
         setIsProcessing(true);
         setError(null);
 
-        // Simulate processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // For demo, we'll just simulate success
-        // In real implementation, would use pdf-lib to decrypt
-        if (password.length < 4) {
-            setError('Invalid password. Please enter the correct document password.');
+        try {
+            const { PDFDocument } = await import('pdf-lib');
+            
+            // Attempt to load with password (pdf-lib only supports ignoreEncryption)
+            // This works for permission-restricted PDFs, not strong password encryption
+            const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0), {
+                ignoreEncryption: true,
+            });
+            
+            // Remove any encryption by re-saving without encryption settings
+            const unlockedBytes = await pdfDoc.save();
+            
+            // Store the unlocked bytes for download
+            setUnlockedBytes(unlockedBytes);
+            setIsComplete(true);
+        } catch (error: any) {
+            console.error('Failed to unlock PDF:', error);
+            if (error.message?.includes('encrypted')) {
+                setError('This PDF uses strong encryption that cannot be removed client-side. Please use a dedicated PDF tool for strongly encrypted files.');
+            } else {
+                setError('Failed to process this PDF. It may require a password or use unsupported encryption.');
+            }
+        } finally {
             setIsProcessing(false);
-            return;
         }
-
-        setIsComplete(true);
-        setIsProcessing(false);
     };
 
     const handleDownload = () => {
-        // In real implementation, would download the unlocked PDF
+        if (!unlockedBytes) {
+            setError('No unlocked file available');
+            return;
+        }
+        
         const filename = activeDocument?.name.replace('.pdf', '-unlocked.pdf') || 'unlocked.pdf';
-        alert(`Downloading: ${filename}`);
+        const blob = new Blob([new Uint8Array(unlockedBytes).buffer], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     if (!activeDocument) {
@@ -212,14 +235,25 @@ export function UnlockPDFTool() {
                     </div>
                 </div>
 
-                {/* Password Input */}
+                {/* Limitation Disclaimer */}
                 <div className="tool-section">
-                    <h3 className="section-title">Enter Document Password</h3>
+                    <div className="info-box" style={{ background: 'rgba(59, 130, 246, 0.08)', borderColor: 'rgba(59, 130, 246, 0.2)' }}>
+                        <p style={{ margin: 0, fontSize: '12px', lineHeight: '1.6' }}>
+                            <strong>⚠️ Limitation:</strong> This tool can remove <em>permission restrictions</em> (printing/copying disabled) 
+                            but cannot decrypt PDFs with <em>strong password encryption</em>. For encrypted PDFs, you'll need to 
+                            use a dedicated decryption tool.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Password Input (Optional) */}
+                <div className="tool-section">
+                    <h3 className="section-title">Password (Optional)</h3>
                     <div className="password-input-wrapper">
                         <input
                             type={showPassword ? 'text' : 'password'}
                             className="text-input password-input"
-                            placeholder="Enter the current password"
+                            placeholder="Enter password if known (optional)"
                             value={password}
                             onChange={(e) => {
                                 setPassword(e.target.value);
@@ -234,7 +268,7 @@ export function UnlockPDFTool() {
                         </button>
                     </div>
                     <span className="input-hint">
-                        Enter the password currently protecting this PDF
+                        Note: This tool removes permission restrictions. Password is stored for future features.
                     </span>
 
                     {error && (
@@ -249,17 +283,17 @@ export function UnlockPDFTool() {
                     <button
                         className="btn btn-primary btn-full"
                         onClick={handleUnlock}
-                        disabled={isProcessing || !password}
+                        disabled={isProcessing}
                     >
                         {isProcessing ? (
                             <>
                                 <Unlock size={18} className="animate-spin" />
-                                <span>Unlocking...</span>
+                                <span>Removing Restrictions...</span>
                             </>
                         ) : (
                             <>
                                 <Unlock size={18} />
-                                <span>Unlock PDF</span>
+                                <span>Remove Restrictions</span>
                             </>
                         )}
                     </button>
