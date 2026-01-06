@@ -7,8 +7,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppProvider, ToastProvider, useApp, useToast } from './store/appStore';
 import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
-import { WelcomeScreen } from './components/WelcomeScreen/WelcomeScreen';
 import { ToolPanel } from './components/Tools/ToolPanel';
+import { EditorToolsPanel } from './components/Layout/EditorToolsPanel';
 import { ToastContainer } from './components/UI/Toast';
 import { Modal } from './components/UI/Modal';
 import { loadPDF } from './utils/pdfHelpers';
@@ -137,44 +137,28 @@ function AppContent() {
             <RibbonToolbar onOpenFile={() => fileInputRef.current?.click()} />
 
             {/* Main Content Area */}
-            <div className="app-main word-layout">
-
-                {/* Center - PDF Viewer, Welcome Screen, or Empty State with Upload Prompt */}
+            <div className="app-main editor-layout">
+                {/* Left/Center - PDF Viewer or compact Upload Prompt */}
                 <div className="app-content">
                     {activeDocument ? (
                         <PDFViewer />
-                    ) : activeTool ? (
-                        /* Show upload prompt when tool is selected but no PDF loaded */
-                        <div className="editor-upload-prompt">
+                    ) : (
+                        /* Compact upload prompt */
+                        <div className="editor-upload-prompt compact">
                             <div className="upload-prompt-content">
-                                {/* Illustrated Icon */}
+                                {/* Small Icon */}
                                 <div className="upload-prompt-illustration">
-                                    <svg width="140" height="140" viewBox="0 0 140 140" fill="none">
-                                        {/* Background circle */}
-                                        <circle cx="70" cy="70" r="68" fill="url(#bgGradient)" />
-
-                                        {/* Paper stack effect */}
-                                        <rect x="38" y="32" width="56" height="72" rx="6" fill="#e5e7eb" transform="rotate(-5 38 32)" />
-                                        <rect x="42" y="28" width="56" height="72" rx="6" fill="#f3f4f6" transform="rotate(3 42 28)" />
-
-                                        {/* Main PDF document */}
-                                        <rect x="40" y="26" width="60" height="78" rx="6" fill="white" stroke="#dc2626" strokeWidth="2.5" />
-
-                                        {/* PDF corner fold */}
-                                        <path d="M84 26 L100 42 L84 42 Z" fill="#fecaca" stroke="#dc2626" strokeWidth="2" />
-
-                                        {/* PDF text lines */}
-                                        <rect x="50" y="52" width="32" height="5" rx="2.5" fill="#e5e7eb" />
-                                        <rect x="50" y="64" width="40" height="4" rx="2" fill="#f3f4f6" />
-                                        <rect x="50" y="74" width="36" height="4" rx="2" fill="#f3f4f6" />
-                                        <rect x="50" y="84" width="28" height="4" rx="2" fill="#f3f4f6" />
-
-                                        {/* Upload arrow circle */}
-                                        <circle cx="82" cy="88" r="22" fill="#dc2626" />
-                                        <path d="M82 78 L82 96 M74 86 L82 78 L90 86" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-
+                                    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                                        <circle cx="40" cy="40" r="38" fill="url(#bgGradient)" />
+                                        <rect x="22" y="18" width="32" height="42" rx="4" fill="white" stroke="#dc2626" strokeWidth="2" />
+                                        <path d="M46 18 L54 26 L46 26 Z" fill="#fecaca" stroke="#dc2626" strokeWidth="1.5" />
+                                        <rect x="28" y="32" width="18" height="3" rx="1.5" fill="#e5e7eb" />
+                                        <rect x="28" y="38" width="22" height="2" rx="1" fill="#f3f4f6" />
+                                        <rect x="28" y="44" width="16" height="2" rx="1" fill="#f3f4f6" />
+                                        <circle cx="48" cy="52" r="12" fill="#dc2626" />
+                                        <path d="M48 46 L48 56 M44 50 L48 46 L52 50" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         <defs>
-                                            <linearGradient id="bgGradient" x1="0" y1="0" x2="140" y2="140">
+                                            <linearGradient id="bgGradient" x1="0" y1="0" x2="80" y2="80">
                                                 <stop offset="0%" stopColor="#fef2f2" />
                                                 <stop offset="100%" stopColor="#fee2e2" />
                                             </linearGradient>
@@ -182,38 +166,31 @@ function AppContent() {
                                     </svg>
                                 </div>
 
-                                <h2 className="upload-prompt-title">Upload a PDF to Get Started</h2>
+                                <h2 className="upload-prompt-title">Upload a PDF</h2>
                                 <p className="upload-prompt-desc">
-                                    Select or drop a PDF file to use this tool.
+                                    Select a tool from the right panel, then upload your PDF.
                                 </p>
-                                <div className="upload-prompt-features">
-                                    <span className="feature-badge">✓ 100% Free</span>
-                                    <span className="feature-badge">✓ Secure</span>
-                                    <span className="feature-badge">✓ No Sign-up</span>
-                                </div>
 
                                 <button
-                                    className="btn btn-primary btn-lg upload-prompt-btn"
+                                    className="btn btn-primary upload-prompt-btn"
                                     onClick={() => fileInputRef.current?.click()}
                                 >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                         <polyline points="17 8 12 3 7 8" />
                                         <line x1="12" y1="3" x2="12" y2="15" />
                                     </svg>
-                                    Choose PDF File
+                                    Choose PDF
                                 </button>
 
-                                <div className="upload-prompt-dropzone">
-                                    <span className="upload-prompt-or">— or —</span>
-                                    <span className="upload-prompt-drop-text">Drag & drop your file anywhere</span>
-                                </div>
+                                <span className="upload-prompt-hint">or drag & drop</span>
                             </div>
                         </div>
-                    ) : (
-                        <WelcomeScreen onFileOpen={handleFileOpen} />
                     )}
                 </div>
+
+                {/* Right Side - Editor Tools Panel */}
+                <EditorToolsPanel />
 
                 {/* Tool Panel - Slides in from right when a tool is active */}
                 {activeTool && (

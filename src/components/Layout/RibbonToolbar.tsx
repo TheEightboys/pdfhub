@@ -7,10 +7,10 @@ import React, { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { ToolId } from '../../types';
 import {
-    Upload, FileText, Save,
+    Upload, FileText, Save, Undo2, Redo2,
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
     Minimize2, Image, FileImage, FileType, FileSpreadsheet,
-    Type, ImagePlus, Crop, Maximize, Palette,
+    Type, ImagePlus, Crop, Maximize, Palette, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
     Lock, Unlock, EyeOff,
     Droplets, Hash, LayoutTemplate, ScanText, FileSearch, Layers, Wrench, Bookmark, Link,
@@ -93,6 +93,7 @@ const RIBBON_TABS: RibbonTab[] = [
                 tools: [
                     { id: 'highlight', name: 'Highlight', icon: <Highlighter size={20} />, requiresDoc: true },
                     { id: 'draw', name: 'Draw', icon: <Pencil size={20} />, requiresDoc: true },
+                    { id: 'erase', name: 'Eraser', icon: <Eraser size={20} />, requiresDoc: true },
                     { id: 'signature', name: 'Sign', icon: <PenTool size={20} />, requiresDoc: true },
                 ],
             },
@@ -233,6 +234,13 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                     {activeDocument?.name || ''}
                 </div>
                 <div className="ribbon-actions">
+                    <button className="ribbon-icon-btn undo" disabled={!activeDocument} title="Undo (Ctrl+Z)">
+                        <Undo2 size={14} />
+                    </button>
+                    <button className="ribbon-icon-btn redo" disabled={!activeDocument} title="Redo (Ctrl+Y)">
+                        <Redo2 size={14} />
+                    </button>
+                    <div className="ribbon-divider"></div>
                     <button className="ribbon-action" onClick={onOpenFile} title="Open">
                         <Upload size={14} />
                         <span>Open</span>

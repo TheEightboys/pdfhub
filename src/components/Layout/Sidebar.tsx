@@ -10,7 +10,7 @@ import { ToolId, ToolCategory, Tool } from '../../types';
 import {
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
     Minimize2, Image, FileImage, FileType, FileSpreadsheet,
-    Type, ImagePlus, Crop, Maximize, Palette,
+    Type, ImagePlus, Crop, Maximize, Palette, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
     Lock, Unlock, EyeOff,
     Droplets, Hash, FileSearch, Layers, Wrench, Bookmark, Link, ScanText,
@@ -42,6 +42,7 @@ const TOOLS: Tool[] = [
     // Annotate
     { id: 'highlight', name: 'Highlight', description: 'Highlight text', icon: 'highlight', category: 'annotate', isPremium: false },
     { id: 'draw', name: 'Draw', description: 'Freehand drawing', icon: 'draw', category: 'annotate', isPremium: false },
+    { id: 'erase', name: 'Eraser', description: 'Erase pen strokes', icon: 'erase', category: 'annotate', isPremium: false },
     { id: 'signature', name: 'Signature', description: 'Add signature', icon: 'signature', category: 'annotate', isPremium: false },
     { id: 'stamp', name: 'Stamp', description: 'Add stamps', icon: 'stamp', category: 'annotate', isPremium: false },
     { id: 'notes', name: 'Sticky Notes', description: 'Add notes', icon: 'notes', category: 'annotate', isPremium: false },
@@ -83,7 +84,7 @@ const getToolIcon = (iconName: string, size: number = 20) => {
         'pdf-to-word': <FileType size={size} />, 'pdf-to-excel': <FileSpreadsheet size={size} />,
         'add-text': <Type size={size} />, 'add-image': <ImagePlus size={size} />,
         crop: <Crop size={size} />, resize: <Maximize size={size} />, background: <Palette size={size} />,
-        highlight: <Highlighter size={size} />, draw: <Pencil size={size} />, shapes: <Shapes size={size} />,
+        highlight: <Highlighter size={size} />, draw: <Pencil size={size} />, erase: <Eraser size={size} />, shapes: <Shapes size={size} />,
         signature: <PenTool size={size} />, stamp: <Stamp size={size} />, notes: <StickyNote size={size} />,
         lock: <Lock size={size} />, unlock: <Unlock size={size} />, redact: <EyeOff size={size} />,
         watermark: <Droplets size={size} />, 'page-numbers': <Hash size={size} />,

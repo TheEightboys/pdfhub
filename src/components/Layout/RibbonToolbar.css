@@ -94,13 +94,37 @@
     transition: all 0.15s;
 }
 
-.ribbon-icon-btn:hover {
+.ribbon-icon-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.15);
     color: white;
 }
 
+.ribbon-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.ribbon-icon-btn.undo,
+.ribbon-icon-btn.redo {
+    width: 28px;
+    height: 28px;
+}
+
+.ribbon-icon-btn.undo:hover:not(:disabled),
+.ribbon-icon-btn.redo:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .ribbon-icon-btn.close:hover {
     background: #ef4444;
+}
+
+/* Divider between undo/redo and file actions */
+.ribbon-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.25);
+    margin: 0 6px;
 }
 
 /* ========== TAB STRIP - Larger and more prominent ========== */
