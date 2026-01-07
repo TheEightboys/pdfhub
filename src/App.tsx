@@ -3,16 +3,13 @@
  * Main Application Component
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { AppProvider, ToastProvider, useApp, useToast } from './store/appStore';
 import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
 import { ToolPanel } from './components/Tools/ToolPanel';
 import { ToastContainer } from './components/UI/Toast';
-import { Modal } from './components/UI/Modal';
 import { loadPDF } from './utils/pdfHelpers';
-import { PDFSecurityScanner } from './utils/securityScanner';
-import { ShieldAlert, AlertTriangle } from 'lucide-react';
 import './styles/global.css';
 import './styles/components.css';
 
@@ -21,12 +18,6 @@ function AppContent() {
     const { state, loadDocument, setLoading, setActiveTool } = useApp();
     const { addToast } = useToast();
     const { activeDocument, activeTool, isLoading, loadingMessage } = state;
-
-    const [showSecurityModal, setShowSecurityModal] = useState(false);
-    const [pendingDocument, setPendingDocument] = useState<{
-        doc: Awaited<ReturnType<typeof loadPDF>>;
-        riskLevel: string;
-    } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,17 +30,8 @@ function AppContent() {
 
         try {
             const doc = await loadPDF(file);
-            const riskLevel = PDFSecurityScanner.getOverallRisk(doc.securityStatus.threats);
-
-            // If there are high/critical threats, show warning modal
-            if (riskLevel === 'high' || riskLevel === 'critical') {
-                setPendingDocument({ doc, riskLevel });
-                setShowSecurityModal(true);
-                setLoading(false);
-                return;
-            }
-
-            // Safe to load
+            
+            // Load document directly without security checks
             loadDocument(doc);
             setActiveTool(null); // Clear any active tool
 
@@ -69,33 +51,6 @@ function AppContent() {
             setLoading(false);
         }
     }, [loadDocument, setLoading, setActiveTool, addToast]);
-
-    // Handle security modal confirm
-    const handleSecurityConfirm = useCallback(() => {
-        if (pendingDocument) {
-            loadDocument(pendingDocument.doc);
-            setPendingDocument(null);
-            setShowSecurityModal(false);
-            setActiveTool(null);
-
-            addToast({
-                type: 'warning',
-                title: 'Document loaded with warnings',
-                message: 'This PDF has security concerns. Be cautious.',
-            });
-        }
-    }, [pendingDocument, loadDocument, setActiveTool, addToast]);
-
-    // Handle security modal cancel
-    const handleSecurityCancel = useCallback(() => {
-        setPendingDocument(null);
-        setShowSecurityModal(false);
-        addToast({
-            type: 'info',
-            title: 'Document not loaded',
-            message: 'The potentially unsafe PDF was not opened.',
-        });
-    }, [addToast]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -247,53 +202,6 @@ function AppContent() {
                     </div>
                 </div>
             )}
-
-            {/* Security Warning Modal */}
-            <Modal
-                isOpen={showSecurityModal}
-                onClose={handleSecurityCancel}
-                title="Security Warning"
-                size="md"
-                footer={
-                    <>
-                        <button className="btn btn-secondary" onClick={handleSecurityCancel}>
-                            Cancel
-                        </button>
-                        <button className="btn btn-danger" onClick={handleSecurityConfirm}>
-                            Open Anyway
-                        </button>
-                    </>
-                }
-            >
-                <div className="security-warning">
-                    <div className="security-warning-icon">
-                        <ShieldAlert size={48} />
-                    </div>
-                    <h3>This PDF may be unsafe</h3>
-                    <p>
-                        The security scan detected potential threats in this file.
-                        Opening it could be risky.
-                    </p>
-
-                    {pendingDocument && (
-                        <div className="security-threats">
-                            {pendingDocument.doc.securityStatus.threats.map((threat, index) => (
-                                <div key={index} className="threat-item">
-                                    <AlertTriangle size={16} style={{ color: PDFSecurityScanner.getSeverityColor(threat.severity) }} />
-                                    <div className="threat-content">
-                                        <span className="threat-type">{threat.type.replace('_', ' ')}</span>
-                                        <span className="threat-desc">{threat.description}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    <p className="security-warning-note">
-                        <strong>Recommendation:</strong> Only open this file if you trust its source.
-                    </p>
-                </div>
-            </Modal>
 
             {/* Toast Container */}
             <ToastContainer />
