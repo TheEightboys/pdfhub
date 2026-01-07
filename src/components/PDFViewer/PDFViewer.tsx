@@ -689,16 +689,6 @@ export function PDFViewer() {
                         </div>
                     ))}
                 </div>
-                {/* Zoom Controls at Bottom */}
-                <div className="thumbnail-zoom-controls">
-                    <button onClick={zoomOut} className="btn-zoom" title="Zoom Out">
-                        <ZoomOut size={16} />
-                    </button>
-                    <span className="zoom-percentage">{zoom}%</span>
-                    <button onClick={zoomIn} className="btn-zoom" title="Zoom In">
-                        <ZoomIn size={16} />
-                    </button>
-                </div>
             </div>
 
             {/* Main Viewer Area */}
@@ -793,6 +783,17 @@ export function PDFViewer() {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                {/* Zoom Controls at Bottom of Editor */}
+                <div className="editor-zoom-controls">
+                    <button onClick={zoomOut} className="btn-zoom" title="Zoom Out">
+                        <ZoomOut size={16} />
+                    </button>
+                    <span className="zoom-percentage">{zoom}%</span>
+                    <button onClick={zoomIn} className="btn-zoom" title="Zoom In">
+                        <ZoomIn size={16} />
+                    </button>
                 </div>
 
                 {isLoading && (
