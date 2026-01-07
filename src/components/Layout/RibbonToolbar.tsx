@@ -246,6 +246,74 @@ const RIBBON_TABS: RibbonTab[] = [
             },
         ],
     },
+    {
+        id: 'organize',
+        name: 'ORGANIZE',
+        groups: [
+            {
+                name: 'Pages',
+                tools: [
+                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
+                    { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
+                    { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
+                    { id: 'delete', name: 'Delete', icon: <Trash2 size={20} />, requiresDoc: true },
+                    { id: 'reorder', name: 'Reorder', icon: <ArrowUpDown size={20} />, requiresDoc: true },
+                    { id: 'duplicate', name: 'Duplicate', icon: <Copy size={20} />, requiresDoc: true },
+                    { id: 'extract', name: 'Extract', icon: <FileOutput size={20} />, requiresDoc: true },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'edit-tab',
+        name: 'EDIT',
+        groups: [
+            {
+                name: 'Content',
+                tools: [
+                    { id: 'add-text', name: 'Text', icon: <Type size={20} />, requiresDoc: true },
+                    { id: 'add-image', name: 'Image', icon: <ImagePlus size={20} />, requiresDoc: true },
+                    { id: 'crop', name: 'Crop', icon: <Crop size={20} />, requiresDoc: true },
+                    { id: 'resize', name: 'Resize', icon: <Maximize size={20} />, requiresDoc: true },
+                    { id: 'background', name: 'Background', icon: <Palette size={20} />, requiresDoc: true },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'convert-tab',
+        name: 'CONVERT',
+        groups: [
+            {
+                name: 'Export & Import',
+                tools: [
+                    { id: 'compress', name: 'Compress', icon: <Minimize2 size={20} />, requiresDoc: true },
+                    { id: 'pdf-to-image', name: 'To Images', icon: <Image size={20} />, requiresDoc: true },
+                    { id: 'image-to-pdf', name: 'From Images', icon: <FileImage size={20} />, requiresDoc: false },
+                    { id: 'pdf-to-word', name: 'To Word', icon: <FileType size={20} />, requiresDoc: true },
+                    { id: 'pdf-to-excel', name: 'To Excel', icon: <FileSpreadsheet size={20} />, requiresDoc: true },
+                    { id: 'ppt-to-pdf', name: 'From PPT', icon: <Presentation size={20} />, requiresDoc: false },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'annotate-tab',
+        name: 'ANNOTATE',
+        groups: [
+            {
+                name: 'Markup',
+                tools: [
+                    { id: 'highlight', name: 'Highlight', icon: <Highlighter size={20} />, requiresDoc: true },
+                    { id: 'draw', name: 'Draw', icon: <Pencil size={20} />, requiresDoc: true },
+                    { id: 'erase', name: 'Eraser', icon: <Eraser size={20} />, requiresDoc: true },
+                    { id: 'signature', name: 'Sign', icon: <PenTool size={20} />, requiresDoc: true },
+                    { id: 'stamp', name: 'Stamp', icon: <Stamp size={20} />, requiresDoc: true },
+                    { id: 'notes', name: 'Notes', icon: <StickyNote size={20} />, requiresDoc: true },
+                ],
+            },
+        ],
+    },
 ];
 
 interface RibbonToolbarProps {
