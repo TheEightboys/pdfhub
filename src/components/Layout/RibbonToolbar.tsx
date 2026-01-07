@@ -44,21 +44,76 @@ const RIBBON_TABS: RibbonTab[] = [
         name: 'HOME',
         groups: [
             {
-                name: 'Pages',
+                name: 'Organize',
                 tools: [
+                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
+                    { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
                     { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
                     { id: 'delete', name: 'Delete', icon: <Trash2 size={20} />, requiresDoc: true },
                     { id: 'reorder', name: 'Reorder', icon: <ArrowUpDown size={20} />, requiresDoc: true },
-                    { id: 'duplicate', name: 'Copy', icon: <Copy size={20} />, requiresDoc: true },
+                    { id: 'duplicate', name: 'Duplicate', icon: <Copy size={20} />, requiresDoc: true },
                     { id: 'extract', name: 'Extract', icon: <FileOutput size={20} />, requiresDoc: true },
                 ],
             },
             {
-                name: 'Document',
+                name: 'Convert',
                 tools: [
-                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
-                    { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
                     { id: 'compress', name: 'Compress', icon: <Minimize2 size={20} />, requiresDoc: true },
+                    { id: 'pdf-to-image', name: 'To Images', icon: <Image size={20} />, requiresDoc: true },
+                    { id: 'image-to-pdf', name: 'From Images', icon: <FileImage size={20} />, requiresDoc: false },
+                    { id: 'pdf-to-word', name: 'To Word', icon: <FileType size={20} />, requiresDoc: true },
+                    { id: 'pdf-to-excel', name: 'To Excel', icon: <FileSpreadsheet size={20} />, requiresDoc: true },
+                    { id: 'ppt-to-pdf', name: 'From PPT', icon: <Presentation size={20} />, requiresDoc: false },
+                ],
+            },
+            {
+                name: 'Edit',
+                tools: [
+                    { id: 'add-text', name: 'Text', icon: <Type size={20} />, requiresDoc: true },
+                    { id: 'add-image', name: 'Image', icon: <ImagePlus size={20} />, requiresDoc: true },
+                    { id: 'crop', name: 'Crop', icon: <Crop size={20} />, requiresDoc: true },
+                    { id: 'resize', name: 'Resize', icon: <Maximize size={20} />, requiresDoc: true },
+                    { id: 'background', name: 'Background', icon: <Palette size={20} />, requiresDoc: true },
+                ],
+            },
+            {
+                name: 'Annotate',
+                tools: [
+                    { id: 'highlight', name: 'Highlight', icon: <Highlighter size={20} />, requiresDoc: true },
+                    { id: 'draw', name: 'Draw', icon: <Pencil size={20} />, requiresDoc: true },
+                    { id: 'erase', name: 'Eraser', icon: <Eraser size={20} />, requiresDoc: true },
+                    { id: 'signature', name: 'Sign', icon: <PenTool size={20} />, requiresDoc: true },
+                    { id: 'stamp', name: 'Stamp', icon: <Stamp size={20} />, requiresDoc: true },
+                    { id: 'notes', name: 'Notes', icon: <StickyNote size={20} />, requiresDoc: true },
+                ],
+            },
+            {
+                name: 'Security',
+                tools: [
+                    { id: 'password-protect', name: 'Encrypt', icon: <Lock size={20} />, requiresDoc: true },
+                    { id: 'unlock', name: 'Unlock', icon: <Unlock size={20} />, requiresDoc: true },
+                    { id: 'redact', name: 'Redact', icon: <EyeOff size={20} />, requiresDoc: true },
+                ],
+            },
+            {
+                name: 'Advanced',
+                tools: [
+                    { id: 'watermark', name: 'Watermark', icon: <Droplets size={20} />, requiresDoc: true },
+                    { id: 'page-numbers', name: 'Numbers', icon: <Hash size={20} />, requiresDoc: true },
+                    { id: 'header-footer', name: 'Header', icon: <LayoutTemplate size={20} />, requiresDoc: true },
+                    { id: 'ocr', name: 'OCR', icon: <ScanText size={20} />, requiresDoc: true },
+                    { id: 'metadata', name: 'Metadata', icon: <FileSearch size={20} />, requiresDoc: true },
+                    { id: 'flatten', name: 'Flatten', icon: <Layers size={20} />, requiresDoc: true },
+                    { id: 'repair', name: 'Repair', icon: <Wrench size={20} />, requiresDoc: true },
+                    { id: 'bookmark', name: 'Bookmark', icon: <Bookmark size={20} />, requiresDoc: true },
+                    { id: 'hyperlinks', name: 'Links', icon: <Link size={20} />, requiresDoc: true },
+                ],
+            },
+            {
+                name: 'AI Tools',
+                tools: [
+                    { id: 'ai-summarize', name: 'Summarize', icon: <Sparkles size={20} />, requiresDoc: true },
+                    { id: 'ai-translate', name: 'Translate', icon: <Globe size={20} />, requiresDoc: true },
                 ],
             },
         ],

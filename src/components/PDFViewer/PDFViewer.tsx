@@ -689,17 +689,22 @@ export function PDFViewer() {
                         </div>
                     ))}
                 </div>
+                {/* Zoom Controls at Bottom */}
+                <div className="thumbnail-zoom-controls">
+                    <button onClick={zoomOut} className="btn-zoom" title="Zoom Out">
+                        <ZoomOut size={16} />
+                    </button>
+                    <span className="zoom-percentage">{zoom}%</span>
+                    <button onClick={zoomIn} className="btn-zoom" title="Zoom In">
+                        <ZoomIn size={16} />
+                    </button>
+                </div>
             </div>
 
             {/* Main Viewer Area */}
             <div className="pdf-viewer">
-                {/* Toolbar */}
+                {/* Toolbar - Only page info */}
                 <div className="viewer-toolbar">
-                    <div className="toolbar-left">
-                        <button onClick={zoomOut} className="btn-tool"><ZoomOut size={18} /></button>
-                        <span className="zoom-level">{zoom}%</span>
-                        <button onClick={zoomIn} className="btn-tool"><ZoomIn size={18} /></button>
-                    </div>
                     <div className="toolbar-center">
                         <span className="page-info">
                             Page {selectedPages[0] || 1} / {activeDocument.pageCount}

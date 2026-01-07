@@ -8,7 +8,6 @@ import { AppProvider, ToastProvider, useApp, useToast } from './store/appStore';
 import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
 import { ToolPanel } from './components/Tools/ToolPanel';
-import { EditorToolsPanel } from './components/Layout/EditorToolsPanel';
 import { ToastContainer } from './components/UI/Toast';
 import { Modal } from './components/UI/Modal';
 import { loadPDF } from './utils/pdfHelpers';
@@ -205,9 +204,6 @@ function AppContent() {
                         })()
                     )}
                 </div>
-
-                {/* Right Side - Editor Tools Panel */}
-                <EditorToolsPanel />
 
                 {/* Tool Panel - Slides in from right when a tool is active (except standalone tools without doc) */}
                 {activeTool && (() => {

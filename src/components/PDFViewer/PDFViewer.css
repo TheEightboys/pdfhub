@@ -1211,6 +1211,70 @@
     }
 }
 
+/* Zoom Controls at Bottom of Thumbnail Panel */
+.thumbnail-zoom-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 8px;
+    background: #161719;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+}
+
+[data-theme="light"] .thumbnail-zoom-controls {
+    background: #e8e8e8;
+    border-top-color: #d0d0d0;
+}
+
+.btn-zoom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-zoom:hover {
+    background: #dc2626;
+    color: white;
+    transform: scale(1.05);
+}
+
+.btn-zoom:active {
+    transform: scale(0.95);
+}
+
+[data-theme="light"] .btn-zoom {
+    background: white;
+    color: #666;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .btn-zoom:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.zoom-percentage {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    min-width: 36px;
+    text-align: center;
+}
+
+[data-theme="light"] .zoom-percentage {
+    color: #555;
+}
+
 /* Zoom Level Display */
 .zoom-level {
     font-size: 12px;
