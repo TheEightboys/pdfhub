@@ -41,6 +41,7 @@ export function PDFViewer() {
     const [renderedPages, setRenderedPages] = useState<Record<number, string>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
+    const [currentVisiblePage, setCurrentVisiblePage] = useState(1);
 
     // Interaction State
     const [isDrawing, setIsDrawing] = useState(false);
@@ -129,22 +130,37 @@ export function PDFViewer() {
         initDoc();
     }, [activeDocument?.id]);
 
-    // Intersection Observer
+    // Intersection Observer for page rendering and tracking current page
     useEffect(() => {
         if (!activeDocument || viewMode === 'single') return;
 
         if (observerRef.current) observerRef.current.disconnect();
 
+        // Track visible pages to find the topmost one
+        const visiblePages = new Set<number>();
+
         observerRef.current = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const pageNum = parseInt(entry.target.getAttribute('data-page-number') || '0');
-                    if (pageNum > 0 && !renderedPagesRef.current[pageNum] && !pendingRendersRef.current.has(pageNum)) {
-                        requestAnimationFrame(() => renderPage(pageNum));
-                    }
+                const pageNum = parseInt(entry.target.getAttribute('data-page-number') || '0');
+                
+                if (entry.isIntersecting && entry.intersectionRatio > 0.2) {
+                    visiblePages.add(pageNum);
+                } else {
+                    visiblePages.delete(pageNum);
+                }
+                
+                // Render page if not already rendered
+                if (entry.isIntersecting && pageNum > 0 && !renderedPagesRef.current[pageNum] && !pendingRendersRef.current.has(pageNum)) {
+                    requestAnimationFrame(() => renderPage(pageNum));
                 }
             });
-        }, { root: containerRef.current, rootMargin: '200px', threshold: 0.1 });
+            
+            // Update current page to the smallest visible page number (topmost)
+            if (visiblePages.size > 0) {
+                const topmostPage = Math.min(...Array.from(visiblePages));
+                setCurrentVisiblePage(topmostPage);
+            }
+        }, { root: containerRef.current, rootMargin: '100px', threshold: [0.2, 0.5] });
 
         const pages = document.querySelectorAll('.page-wrapper');
         pages.forEach(p => observerRef.current?.observe(p));
@@ -689,19 +705,14 @@ export function PDFViewer() {
                         </div>
                     ))}
                 </div>
+                {/* Page Info at Bottom */}
+                <div className="thumbnail-page-info">
+                    <span>Page {currentVisiblePage} / {activeDocument.pageCount}</span>
+                </div>
             </div>
 
             {/* Main Viewer Area */}
             <div className="pdf-viewer">
-                {/* Toolbar - Only page info */}
-                <div className="viewer-toolbar">
-                    <div className="toolbar-center">
-                        <span className="page-info">
-                            Page {selectedPages[0] || 1} / {activeDocument.pageCount}
-                        </span>
-                    </div>
-                </div>
-
                 {/* Viewer Content */}
                 <div className="viewer-content">
                     <div className="documents-container" ref={containerRef}>

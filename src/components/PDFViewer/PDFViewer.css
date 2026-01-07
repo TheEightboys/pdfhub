@@ -1211,6 +1211,32 @@
     }
 }
 
+/* Page Info at Bottom of Thumbnail Panel */
+.thumbnail-page-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    background: #161719;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.thumbnail-page-info span {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+}
+
+[data-theme="light"] .thumbnail-page-info {
+    background: #f5f5f5;
+    border-top-color: #d0d0d0;
+}
+
+[data-theme="light"] .thumbnail-page-info span {
+    color: #555;
+}
+
 /* Zoom Controls at Bottom of Thumbnail Panel */
 .thumbnail-zoom-controls {
     display: flex;
@@ -1370,4 +1396,27 @@
 
 [data-theme="dark"] .editor-zoom-controls .zoom-percentage {
     color: #e5e7eb;
+}
+
+/* Page Info at Bottom */
+.page-info-bottom {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .page-info-bottom {
+    color: #e5e7eb;
+}
+
+.zoom-divider {
+    width: 1px;
+    height: 20px;
+    background: #d1d5db;
+    margin: 0 8px;
+}
+
+[data-theme="dark"] .zoom-divider {
+    background: #4b5563;
 }
