@@ -9,7 +9,8 @@ import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
 import { ToolPanel } from './components/Tools/ToolPanel';
 import { ToastContainer } from './components/UI/Toast';
-import { loadPDF } from './utils/pdfHelpers';
+import { loadPDF, loadPDFFromArrayBuffer } from './utils/pdfHelpers';
+import { saveDocumentToStorage, getLastDocumentFromStorage } from './utils/documentStorage';
 import './styles/global.css';
 import './styles/components.css';
 
@@ -20,6 +21,35 @@ function AppContent() {
     const { activeDocument, activeTool, isLoading, loadingMessage } = state;
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const hasAutoRestored = useRef<boolean>(false);
+
+    // Auto-restore last document on mount
+    useEffect(() => {
+        if (hasAutoRestored.current) return;
+        hasAutoRestored.current = true;
+
+        const autoRestore = async () => {
+            try {
+                const savedDoc = await getLastDocumentFromStorage();
+                if (savedDoc) {
+                    setLoading(true, 'Restoring document...');
+                    const doc = await loadPDFFromArrayBuffer(savedDoc.arrayBuffer, savedDoc.name, savedDoc.id);
+                    loadDocument(doc);
+                    addToast({
+                        type: 'success',
+                        title: 'Document restored',
+                        message: savedDoc.name,
+                    });
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error('Failed to auto-restore document:', error);
+                setLoading(false);
+            }
+        };
+
+        autoRestore();
+    }, [loadDocument, setLoading, addToast]);
 
     // Handle file open
     const handleFileOpen = useCallback(async (files: File[]) => {
@@ -34,6 +64,18 @@ function AppContent() {
             // Load document directly without security checks
             loadDocument(doc);
             setActiveTool(null); // Clear any active tool
+
+            // Save document to IndexedDB for persistence
+            try {
+                await saveDocumentToStorage({
+                    id: doc.id,
+                    name: doc.name,
+                    arrayBuffer: doc.arrayBuffer,
+                    pageCount: doc.pageCount,
+                });
+            } catch (storageError) {
+                console.warn('Failed to save document to storage:', storageError);
+            }
 
             addToast({
                 type: 'success',

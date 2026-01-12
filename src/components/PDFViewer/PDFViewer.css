@@ -21,7 +21,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: auto;
-    padding: 24px;
+    padding: 0 4px 4px 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1098,6 +1098,10 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 [data-theme="light"] .thumbnail-panel {
@@ -1202,6 +1206,150 @@
 .thumbnail-item.active .thumbnail-label {
     color: #dc2626;
     font-weight: 600;
+}
+
+/* Thumbnail Export Button */
+.thumbnail-export-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    background: rgba(220, 38, 38, 0.9);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 5;
+}
+
+.thumbnail-item:hover .thumbnail-export-btn {
+    opacity: 1;
+}
+
+.thumbnail-export-btn:hover {
+    background: #ef4444;
+}
+
+.thumbnail-item {
+    position: relative;
+}
+
+/* Thumbnail Export Popup */
+.thumbnail-export-popup {
+    position: fixed;
+    z-index: 1000;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    padding: 12px;
+    min-width: 180px;
+    animation: popupFadeIn 0.15s ease;
+}
+
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.popup-header span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.popup-header button {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    border-radius: 4px;
+}
+
+.popup-header button:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.popup-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.popup-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.popup-option:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.popup-option:hover svg {
+    color: white;
+}
+
+.popup-option svg {
+    color: #dc2626;
+}
+
+.popup-option span {
+    font-size: 11px;
+    font-weight: 500;
+    color: inherit;
+}
+
+[data-theme="dark"] .thumbnail-export-popup {
+    background: #1f2937;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .popup-header {
+    border-bottom-color: #374151;
+}
+
+[data-theme="dark"] .popup-header span {
+    color: #f3f4f6;
+}
+
+[data-theme="dark"] .popup-option {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f3f4f6;
 }
 
 /* Responsive - Hide thumbnails on small screens */

@@ -651,3 +651,64 @@ export async function getPDFBytes(arrayBuffer: ArrayBuffer): Promise<Uint8Array>
     const pdf = await PDFLibDocument.load(arrayBuffer, { ignoreEncryption: true });
     return pdf.save();
 }
+
+/**
+ * Load a PDF from ArrayBuffer (for restoring saved documents)
+ */
+export async function loadPDFFromArrayBuffer(
+    arrayBuffer: ArrayBuffer,
+    name: string,
+    id?: string
+): Promise<PDFDocument> {
+    // Load with pdf-lib
+    const pdfDoc = await PDFLibDocument.load(arrayBuffer, {
+        ignoreEncryption: true,
+    });
+
+    const pageCount = pdfDoc.getPageCount();
+    const pages: PDFPage[] = [];
+
+    // Get page info
+    for (let i = 0; i < pageCount; i++) {
+        const page = pdfDoc.getPage(i);
+        const { width, height } = page.getSize();
+        const rotation = page.getRotation().angle as 0 | 90 | 180 | 270;
+
+        pages.push({
+            pageNumber: i + 1,
+            width,
+            height,
+            rotation,
+            isSelected: false,
+            annotations: [],
+        });
+    }
+
+    // Get metadata
+    const metadata: PDFMetadata = {
+        title: pdfDoc.getTitle() || undefined,
+        author: pdfDoc.getAuthor() || undefined,
+        subject: pdfDoc.getSubject() || undefined,
+        keywords: pdfDoc.getKeywords()?.split(',').map(k => k.trim()) || undefined,
+        creator: pdfDoc.getCreator() || undefined,
+        producer: pdfDoc.getProducer() || undefined,
+        creationDate: pdfDoc.getCreationDate() || undefined,
+        modificationDate: pdfDoc.getModificationDate() || undefined,
+    };
+
+    return {
+        id: id || generateId(),
+        name,
+        file: undefined as unknown as File, // No file available when restoring
+        arrayBuffer,
+        pageCount,
+        pages,
+        metadata,
+        isSecure: false,
+        securityStatus: {
+            isScanned: true,
+            isClean: true,
+            threats: [],
+        },
+    };
+}

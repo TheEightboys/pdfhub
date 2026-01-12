@@ -6,10 +6,15 @@
 
 import { useEffect, useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { useApp } from '../../store/appStore';
+import { useApp, useToast } from '../../store/appStore';
 import {
     ZoomIn,
     ZoomOut,
+    FileText,
+    FileSpreadsheet,
+    FileType,
+    Image,
+    X,
 } from 'lucide-react';
 import './PDFViewer.css';
 import { TextInputModal } from '../UI/TextInputModal';
@@ -35,6 +40,7 @@ export function PDFViewer() {
         updateAnnotation,
         deleteAnnotation
     } = useApp();
+    const { addToast } = useToast();
 
     const { activeDocument, zoom, viewMode, selectedPages, activeTool, toolOptions } = state;
 
@@ -42,6 +48,9 @@ export function PDFViewer() {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
     const [currentVisiblePage, setCurrentVisiblePage] = useState(1);
+
+    // Thumbnail popup state
+    const [thumbnailPopup, setThumbnailPopup] = useState<{ pageNum: number; x: number; y: number } | null>(null);
 
     // Interaction State
     const [isDrawing, setIsDrawing] = useState(false);
@@ -686,9 +695,16 @@ export function PDFViewer() {
                         <div
                             key={page.pageNumber}
                             className={`thumbnail-item ${selectedPages.includes(page.pageNumber) ? 'active' : ''}`}
-                            onClick={() => scrollToPage(page.pageNumber)}
                         >
-                            <div className="thumbnail-preview">
+                            <div 
+                                className="thumbnail-preview"
+                                onClick={() => scrollToPage(page.pageNumber)}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setThumbnailPopup({ pageNum: page.pageNumber, x: rect.right + 5, y: rect.top });
+                                }}
+                            >
                                 {renderedPages[page.pageNumber] ? (
                                     <img
                                         src={renderedPages[page.pageNumber]}
@@ -702,6 +718,18 @@ export function PDFViewer() {
                                 )}
                             </div>
                             <span className="thumbnail-label">{page.pageNumber}</span>
+                            {/* Export popup icon */}
+                            <button 
+                                className="thumbnail-export-btn"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setThumbnailPopup({ pageNum: page.pageNumber, x: rect.right + 5, y: rect.top });
+                                }}
+                                title="Export page"
+                            >
+                                <FileText size={12} />
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -710,6 +738,61 @@ export function PDFViewer() {
                     <span>Page {currentVisiblePage} / {activeDocument.pageCount}</span>
                 </div>
             </div>
+
+            {/* Thumbnail Export Popup */}
+            {thumbnailPopup && (
+                <div 
+                    className="thumbnail-export-popup"
+                    style={{ left: thumbnailPopup.x, top: thumbnailPopup.y }}
+                >
+                    <div className="popup-header">
+                        <span>Export Page {thumbnailPopup.pageNum}</span>
+                        <button onClick={() => setThumbnailPopup(null)}><X size={14} /></button>
+                    </div>
+                    <div className="popup-options">
+                        <button 
+                            className="popup-option" 
+                            onClick={() => {
+                                addToast({ type: 'info', title: 'Coming soon', message: 'PDF export coming soon' });
+                                setThumbnailPopup(null);
+                            }}
+                        >
+                            <FileText size={20} />
+                            <span>PDF</span>
+                        </button>
+                        <button 
+                            className="popup-option"
+                            onClick={() => {
+                                addToast({ type: 'info', title: 'Coming soon', message: 'Word export coming soon' });
+                                setThumbnailPopup(null);
+                            }}
+                        >
+                            <FileType size={20} />
+                            <span>Word</span>
+                        </button>
+                        <button 
+                            className="popup-option"
+                            onClick={() => {
+                                addToast({ type: 'info', title: 'Coming soon', message: 'Excel export coming soon' });
+                                setThumbnailPopup(null);
+                            }}
+                        >
+                            <FileSpreadsheet size={20} />
+                            <span>Excel</span>
+                        </button>
+                        <button 
+                            className="popup-option"
+                            onClick={() => {
+                                addToast({ type: 'info', title: 'Coming soon', message: 'Image export coming soon' });
+                                setThumbnailPopup(null);
+                            }}
+                        >
+                            <Image size={20} />
+                            <span>Image</span>
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Main Viewer Area */}
             <div className="pdf-viewer">

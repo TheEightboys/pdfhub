@@ -18,7 +18,7 @@
 
 .tool-panel-close {
     position: absolute !important;
-    top: 16px !important;
+    top: 8px !important;
     right: 16px !important;
     z-index: 10 !important;
     display: flex !important;
@@ -58,7 +58,7 @@
 }
 
 .tool-header {
-    padding: 20px 20px 16px !important;
+    padding: 0 20px 16px !important;
     border-bottom: 1px solid #e5e7eb !important;
     background: #ffffff !important;
     flex-shrink: 0 !important;
@@ -599,15 +599,15 @@ button.btn-ghost:hover:not(:disabled),
         inset: 0;
         z-index: 1000;
     }
-    
+
     .tool-header {
         padding: 20px;
     }
-    
+
     .tool-title {
         font-size: 18px;
     }
-    
+
     .tool-content {
         padding: 16px;
     }

@@ -48,6 +48,30 @@
     white-space: nowrap;
     max-width: 400px;
     margin: 0 auto;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px 8px;
+    transition: all 0.2s;
+}
+
+.ribbon-doc-name:hover:not(:read-only) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ribbon-doc-name:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ribbon-doc-name:read-only {
+    cursor: default;
+}
+
+.ribbon-doc-name:not(:read-only) {
+    cursor: text;
 }
 
 .ribbon-actions {
@@ -113,6 +137,17 @@
 .ribbon-icon-btn.undo:hover:not(:disabled),
 .ribbon-icon-btn.redo:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Tools Toggle Button */
+.ribbon-icon-btn.tools-toggle.active {
+    background: #dc2626;
+    color: white;
+}
+
+.ribbon-icon-btn.tools-toggle:hover:not(:disabled) {
+    background: rgba(220, 38, 38, 0.8);
+    color: white;
 }
 
 .ribbon-icon-btn.close:hover {

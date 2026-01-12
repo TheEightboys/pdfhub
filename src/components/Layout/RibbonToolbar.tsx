@@ -3,7 +3,7 @@
  * Compact Microsoft Word-like ribbon toolbar
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { ToolId } from '../../types';
 import {
@@ -15,9 +15,10 @@ import {
     Lock, Unlock, EyeOff,
     Droplets, Hash, LayoutTemplate, ScanText, FileSearch, Layers, Wrench, Bookmark, Link,
     Sparkles, Globe,
-    Sun, Moon, X,
+    Sun, Moon, X, RotateCw, Trash, LayoutGrid,
 } from 'lucide-react';
-import { downloadPDF, getPDFBytes } from '../../utils/pdfHelpers';
+import { downloadPDF, getPDFBytes, loadPDFFromArrayBuffer } from '../../utils/pdfHelpers';
+import { getLastDocumentFromStorage, clearDocumentStorage, hasSavedDocument } from '../../utils/documentStorage';
 import './RibbonToolbar.css';
 
 interface RibbonTool {
@@ -54,24 +55,6 @@ const RIBBON_TABS: RibbonTab[] = [
                     { id: 'highlight', name: 'Highlight', icon: <Highlighter size={20} />, requiresDoc: true },
                     { id: 'ocr', name: 'OCR', icon: <ScanText size={20} />, requiresDoc: true },
                     { id: 'password-protect', name: 'Encrypt', icon: <Lock size={20} />, requiresDoc: true },
-                ],
-            },
-        ],
-    },
-    {
-        id: 'organize',
-        name: 'ORGANIZE',
-        groups: [
-            {
-                name: 'Pages',
-                tools: [
-                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
-                    { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
-                    { id: 'extract', name: 'Extract', icon: <FileOutput size={20} />, requiresDoc: true },
-                    { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
-                    { id: 'delete', name: 'Delete', icon: <Trash2 size={20} />, requiresDoc: true },
-                    { id: 'reorder', name: 'Reorder', icon: <ArrowUpDown size={20} />, requiresDoc: true },
-                    { id: 'duplicate', name: 'Duplicate', icon: <Copy size={20} />, requiresDoc: true },
                 ],
             },
         ],
@@ -118,6 +101,24 @@ const RIBBON_TABS: RibbonTab[] = [
                     { id: 'signature', name: 'Sign', icon: <PenTool size={20} />, requiresDoc: true },
                     { id: 'stamp', name: 'Stamp', icon: <Stamp size={20} />, requiresDoc: true },
                     { id: 'notes', name: 'Notes', icon: <StickyNote size={20} />, requiresDoc: true },
+                ],
+            },
+        ],
+    },
+    {
+        id: 'organize',
+        name: 'ORGANIZE',
+        groups: [
+            {
+                name: 'Pages',
+                tools: [
+                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
+                    { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
+                    { id: 'extract', name: 'Extract', icon: <FileOutput size={20} />, requiresDoc: true },
+                    { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
+                    { id: 'delete', name: 'Delete', icon: <Trash2 size={20} />, requiresDoc: true },
+                    { id: 'reorder', name: 'Reorder', icon: <ArrowUpDown size={20} />, requiresDoc: true },
+                    { id: 'duplicate', name: 'Duplicate', icon: <Copy size={20} />, requiresDoc: true },
                 ],
             },
         ],
@@ -206,10 +207,26 @@ interface RibbonToolbarProps {
 }
 
 export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
-    const { state, setActiveTool, toggleTheme, closeDocument } = useApp();
+    const { state, setActiveTool, toggleTheme, closeDocument, loadDocument } = useApp();
     const { addToast } = useToast();
     const { theme, activeDocument, activeTool } = state;
     const [activeTab, setActiveTab] = useState<string>('home');
+    const [editableFileName, setEditableFileName] = useState<string>('');
+    const [hasSavedDoc, setHasSavedDoc] = useState<boolean>(false);
+
+    // Check for saved document on mount
+    useEffect(() => {
+        hasSavedDocument().then(setHasSavedDoc);
+    }, []);
+
+    // Update editable filename when active document changes
+    useEffect(() => {
+        if (activeDocument) {
+            setEditableFileName(activeDocument.name);
+        } else {
+            setEditableFileName('');
+        }
+    }, [activeDocument]);
 
     const handleToolClick = (tool: RibbonTool) => {
         if (tool.requiresDoc && !activeDocument) {
@@ -229,6 +246,34 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
         } catch { addToast({ type: 'error', title: 'Failed', message: 'Could not save.' }); }
     };
 
+    const handleRestoreDocument = async () => {
+        try {
+            const savedDoc = await getLastDocumentFromStorage();
+            if (savedDoc) {
+                const doc = await loadPDFFromArrayBuffer(savedDoc.arrayBuffer, savedDoc.name, savedDoc.id);
+                loadDocument(doc);
+                setActiveTool(null);
+                addToast({ type: 'success', title: 'Restored', message: `${savedDoc.name} restored from storage` });
+            } else {
+                addToast({ type: 'warning', title: 'No saved document', message: 'No document found in storage.' });
+            }
+        } catch (error) {
+            console.error('Failed to restore document:', error);
+            addToast({ type: 'error', title: 'Restore failed', message: 'Could not restore document.' });
+        }
+    };
+
+    const handleClearStorage = async () => {
+        try {
+            await clearDocumentStorage();
+            setHasSavedDoc(false);
+            addToast({ type: 'success', title: 'Storage cleared', message: 'Saved document has been removed.' });
+        } catch (error) {
+            console.error('Failed to clear storage:', error);
+            addToast({ type: 'error', title: 'Clear failed', message: 'Could not clear storage.' });
+        }
+    };
+
     const currentTab = RIBBON_TABS.find(t => t.id === activeTab);
 
     return (
@@ -239,9 +284,14 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                     <FileText size={16} />
                     <span className="ribbon-title">PDFHub</span>
                 </div>
-                <div className="ribbon-doc-name">
-                    {activeDocument?.name || ''}
-                </div>
+                <input
+                    type="text"
+                    className="ribbon-doc-name"
+                    value={editableFileName}
+                    onChange={(e) => setEditableFileName(e.target.value)}
+                    placeholder="Untitled Document"
+                    readOnly={!activeDocument}
+                />
                 <div className="ribbon-actions">
                     <button className="ribbon-icon-btn undo" disabled={!activeDocument} title="Undo (Ctrl+Z)">
                         <Undo2 size={14} />
@@ -254,9 +304,29 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                         <Upload size={14} />
                         <span>Open</span>
                     </button>
+                    {hasSavedDoc && !activeDocument && (
+                        <button className="ribbon-action" onClick={handleRestoreDocument} title="Restore last document">
+                            <RotateCw size={14} />
+                            <span>Restore</span>
+                        </button>
+                    )}
                     <button className="ribbon-action" onClick={handleDownload} disabled={!activeDocument} title="Save">
                         <Save size={14} />
                         <span>Save</span>
+                    </button>
+                    {hasSavedDoc && (
+                        <button className="ribbon-icon-btn" onClick={handleClearStorage} title="Clear saved document">
+                            <Trash size={14} />
+                        </button>
+                    )}
+                    <div className="ribbon-divider"></div>
+                    <button 
+                        className={`ribbon-icon-btn tools-toggle ${activeTool ? 'active' : ''}`} 
+                        onClick={() => setActiveTool(activeTool ? null : 'compress')} 
+                        disabled={!activeDocument}
+                        title="Toggle Tools Panel"
+                    >
+                        <LayoutGrid size={14} />
                     </button>
                     <button className="ribbon-icon-btn" onClick={toggleTheme} title="Theme">
                         {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
