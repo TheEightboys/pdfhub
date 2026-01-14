@@ -57,7 +57,7 @@ export function CompressPDFTool() {
                 (p) => setProgress(p)
             );
 
-            const originalSize = activeDocument.file.size;
+            const originalSize = activeDocument.arrayBuffer.byteLength;
             const newSize = compressedBytes.length;
 
             setResult({ originalSize, newSize });
@@ -99,7 +99,7 @@ export function CompressPDFTool() {
     }
 
     // Default target size logic (initially set to 50% of current)
-    if (activeDocument && level === 'custom' && targetSizeMB === 1 && activeDocument.file.size > 0) {
+    if (activeDocument && level === 'custom' && targetSizeMB === 1 && activeDocument.arrayBuffer.byteLength > 0) {
         // Only if user hasn't touched it, maybe set intelligent default? 
         // For now 1MB default is safe.
     }
@@ -120,7 +120,7 @@ export function CompressPDFTool() {
                         <FileText size={32} className="compress-file-icon" />
                         <div className="compress-file-details">
                             <span className="compress-file-name">{activeDocument.name}</span>
-                            <span className="compress-file-size">{formatBytes(activeDocument.file.size)}</span>
+                            <span className="compress-file-size">{formatBytes(activeDocument.arrayBuffer.byteLength)}</span>
                         </div>
                     </div>
                 </div>
@@ -164,7 +164,7 @@ export function CompressPDFTool() {
                                     }}
                                 />
                                 <span style={{ fontSize: '13px', color: '#64748b' }}>
-                                    (Original: {(activeDocument.file.size / (1024 * 1024)).toFixed(2)} MB)
+                                    (Original: {(activeDocument.arrayBuffer.byteLength / (1024 * 1024)).toFixed(2)} MB)
                                 </span>
                             </div>
                         </div>
@@ -232,7 +232,7 @@ export function CompressPDFTool() {
                     </span>
                     <span className="summary-divider">•</span>
                     <span className="summary-stat">
-                        <strong>{formatBytes(activeDocument.file.size)}</strong>
+                        <strong>{formatBytes(activeDocument.arrayBuffer.byteLength)}</strong>
                     </span>
                 </div>
 

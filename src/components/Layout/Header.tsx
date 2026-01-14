@@ -4,6 +4,7 @@
  * Clean, humanized design
  */
 
+import { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import {
     FileText,
@@ -19,9 +20,11 @@ import {
     Undo2,
     Redo2,
     HelpCircle,
+    Grid3x3,
 } from 'lucide-react';
 import { downloadPDF, getPDFBytes } from '../../utils/pdfHelpers';
 import { PDFSecurityScanner } from '../../utils/securityScanner';
+import { ProductNavPopup } from '../UI/ProductNavPopup';
 
 import './Header.css';
 
@@ -33,6 +36,7 @@ export function Header({ onOpenFile }: HeaderProps) {
     const { state, toggleTheme, toggleSidebar, closeDocument } = useApp();
     const { addToast } = useToast();
     const { theme, activeDocument, sidebarCollapsed } = state;
+    const [isProductNavOpen, setIsProductNavOpen] = useState(false);
 
     const handleCloseDocument = () => {
         if (activeDocument) {
@@ -107,10 +111,10 @@ export function Header({ onOpenFile }: HeaderProps) {
 
                 <div className="header-brand">
                     <div className="header-logo">
-                        <img src="/logo.png" alt="PDFHub Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                        <img src="/logo.svg" alt="PDF Editor Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                     </div>
                     <div className="header-brand-text">
-                        <span className="header-title">PDFHub</span>
+                        <span className="header-title">PDF Editor</span>
                         <span className="header-subtitle">Free & Secure</span>
                     </div>
                 </div>
@@ -172,6 +176,13 @@ export function Header({ onOpenFile }: HeaderProps) {
                 <div className="header-divider" />
 
                 <div className="header-utilities">
+                    <button 
+                        className="header-icon-btn" 
+                        onClick={() => setIsProductNavOpen(true)}
+                        title="Famral Products"
+                    >
+                        <Grid3x3 size={18} />
+                    </button>
                     <button className="header-icon-btn" title="Help">
                         <HelpCircle size={18} />
                     </button>
@@ -185,7 +196,8 @@ export function Header({ onOpenFile }: HeaderProps) {
                 </div>
             </div>
 
-
+            {/* Product Navigation Popup */}
+            <ProductNavPopup isOpen={isProductNavOpen} onClose={() => setIsProductNavOpen(false)} />
         </header>
     );
 }

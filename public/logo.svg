@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+  <defs>
+    <linearGradient id="docGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Document icon with blue gradient -->
+  <rect x="120" y="80" width="320" height="440" rx="40" fill="url(#docGradient)"/>
+  
+  <!-- Folded corner -->
+  <path d="M 440 80 L 440 180 L 340 180 Z" fill="#60a5fa" opacity="0.6"/>
+  <path d="M 340 180 L 440 180 L 440 80 Z" fill="none" stroke="#1e40af" stroke-width="4"/>
+  
+  <!-- Text lines in white -->
+  <rect x="180" y="240" width="180" height="24" rx="12" fill="#ffffff"/>
+  <rect x="180" y="300" width="240" height="20" rx="10" fill="#ffffff"/>
+  <rect x="180" y="360" width="200" height="20" rx="10" fill="#ffffff"/>
+  
+  <!-- Pen/Edit icon in white -->
+  <circle cx="480" cy="480" r="120" fill="#ffffff"/>
+  <path d="M 420 520 L 420 440 L 500 360 L 560 420 L 480 500 Z" fill="#2563eb" stroke="#1d4ed8" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="530" cy="390" r="20" fill="#1d4ed8"/>
+  <rect x="410" y="510" width="80" height="20" rx="4" fill="#1d4ed8"/>
+</svg>

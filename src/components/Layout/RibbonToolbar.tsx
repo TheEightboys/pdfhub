@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { downloadPDF, getPDFBytes, loadPDFFromArrayBuffer } from '../../utils/pdfHelpers';
 import { getLastDocumentFromStorage, clearDocumentStorage, hasSavedDocument } from '../../utils/documentStorage';
+import { ProductNavPopup } from '../UI/ProductNavPopup';
 import './RibbonToolbar.css';
 
 interface RibbonTool {
@@ -213,6 +214,7 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
     const [activeTab, setActiveTab] = useState<string>('home');
     const [editableFileName, setEditableFileName] = useState<string>('');
     const [hasSavedDoc, setHasSavedDoc] = useState<boolean>(false);
+    const [isProductNavOpen, setIsProductNavOpen] = useState(false);
 
     // Check for saved document on mount
     useEffect(() => {
@@ -282,7 +284,7 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
             <div className="ribbon-header">
                 <div className="ribbon-brand">
                     <FileText size={16} />
-                    <span className="ribbon-title">PDFHub</span>
+                    <span className="ribbon-title">PDF Editor</span>
                 </div>
                 <input
                     type="text"
@@ -321,10 +323,9 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                     )}
                     <div className="ribbon-divider"></div>
                     <button 
-                        className={`ribbon-icon-btn tools-toggle ${activeTool ? 'active' : ''}`} 
-                        onClick={() => setActiveTool(activeTool ? null : 'compress')} 
-                        disabled={!activeDocument}
-                        title="Toggle Tools Panel"
+                        className="ribbon-icon-btn products-toggle" 
+                        onClick={() => setIsProductNavOpen(true)} 
+                        title="Famral Products"
                     >
                         <LayoutGrid size={14} />
                     </button>
@@ -380,6 +381,9 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                     ))}
                 </div>
             )}
+
+            {/* Product Navigation Popup */}
+            <ProductNavPopup isOpen={isProductNavOpen} onClose={() => setIsProductNavOpen(false)} />
         </div>
     );
 }
