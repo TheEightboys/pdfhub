@@ -316,9 +316,9 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                             <span>Restore</span>
                         </button>
                     )}
-                    <button className="ribbon-action" onClick={handleDownload} disabled={!activeDocument} title="Save">
+                    <button className="ribbon-action" onClick={handleDownload} disabled={!activeDocument} title="Download">
                         <Save size={14} />
-                        <span>Save</span>
+                        <span>Download</span>
                     </button>
                     {hasSavedDoc && (
                         <button className="ribbon-icon-btn" onClick={handleClearStorage} title="Clear saved document">
