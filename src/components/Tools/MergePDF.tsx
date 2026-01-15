@@ -53,14 +53,8 @@ export function MergePDFTool() {
                 pageCount: activeDocument.pageCount,
             }]);
             setActiveDocAdded(true);
-            
-            addToast({
-                type: 'info',
-                title: 'Document added',
-                message: `${activeDocument.name} added as the first file to merge`,
-            });
         }
-    }, [activeDocument, activeDocAdded, addToast]);
+    }, [activeDocument, activeDocAdded]);
 
     const handleFilesAccepted = useCallback(async (newFiles: File[]) => {
         const fileItems: FileItem[] = [];

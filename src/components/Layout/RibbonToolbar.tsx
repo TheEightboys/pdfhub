@@ -238,15 +238,19 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
         if (tool.id !== 'save') setActiveTool(tool.id as ToolId);
     };
 
+
     const handleDownload = async () => {
         if (!activeDocument) return;
         try {
             const bytes = await getPDFBytes(activeDocument.arrayBuffer.slice(0));
-            const newName = activeDocument.name.replace('.pdf', '_edited.pdf');
+            // Use the editable filename from the input field
+            const baseName = editableFileName.replace(/\.pdf$/i, '');
+            const newName = `${baseName}_edited.pdf`;
             downloadPDF(bytes, newName);
             addToast({ type: 'success', title: 'Saved', message: newName });
         } catch { addToast({ type: 'error', title: 'Failed', message: 'Could not save.' }); }
     };
+
 
     const handleRestoreDocument = async () => {
         try {

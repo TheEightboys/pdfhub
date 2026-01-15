@@ -44,7 +44,7 @@ export function ProductNavPopup({ isOpen, onClose }: ProductNavPopupProps) {
     if (!isOpen) return null;
 
     const handleProductClick = (url: string) => {
-        window.location.href = url;
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const handleOverlayClick = (e: React.MouseEvent) => {

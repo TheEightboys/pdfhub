@@ -1,26 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-  <defs>
-    <linearGradient id="docGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#2563eb"/>
-      <stop offset="100%" style="stop-color:#1d4ed8"/>
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- PDF Icon with red fill and white text -->
+  <path d="M128 0C110.3 0 96 14.3 96 32v448c0 17.7 14.3 32 32 32h256c17.7 0 32-14.3 32-32V128L288 0H128z" fill="#dc2626"/>
+  <path d="M288 0v128h128L288 0z" fill="#dc2626" opacity="0.8"/>
   
-  <!-- Document icon with blue gradient -->
-  <rect x="120" y="80" width="320" height="440" rx="40" fill="url(#docGradient)"/>
+  <!-- White inner rectangle for contrast -->
+  <rect x="140" y="80" width="232" height="352" rx="8" fill="white"/>
   
-  <!-- Folded corner -->
-  <path d="M 440 80 L 440 180 L 340 180 Z" fill="#60a5fa" opacity="0.6"/>
-  <path d="M 340 180 L 440 180 L 440 80 Z" fill="none" stroke="#1e40af" stroke-width="4"/>
+  <!-- PDF Text in red -->
+  <text x="256" y="280" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#dc2626" text-anchor="middle">PDF</text>
   
-  <!-- Text lines in white -->
-  <rect x="180" y="240" width="180" height="24" rx="12" fill="#ffffff"/>
-  <rect x="180" y="300" width="240" height="20" rx="10" fill="#ffffff"/>
-  <rect x="180" y="360" width="200" height="20" rx="10" fill="#ffffff"/>
-  
-  <!-- Pen/Edit icon in white -->
-  <circle cx="480" cy="480" r="120" fill="#ffffff"/>
-  <path d="M 420 520 L 420 440 L 500 360 L 560 420 L 480 500 Z" fill="#2563eb" stroke="#1d4ed8" stroke-width="6" stroke-linejoin="round"/>
-  <circle cx="530" cy="390" r="20" fill="#1d4ed8"/>
-  <rect x="410" y="510" width="80" height="20" rx="4" fill="#1d4ed8"/>
+  <!-- Folded corner detail -->
+  <path d="M288 0v96c0 17.7 14.3 32 32 32h96L288 0z" fill="white" opacity="0.3"/>
 </svg>

@@ -829,20 +829,21 @@ svg {
 .tool-panel-overlay {
     position: fixed;
     top: 134px;
-    right: 16px;
-    bottom: 16px;
+    right: 20px;
+    bottom: 0;
     width: 360px;
     max-width: calc(100vw - 32px);
     background: var(--bg-primary);
-    border-radius: 12px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
+    border-radius: 0;
+    margin-left: 20px;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
     z-index: 90;
     overflow: hidden;
     animation: slideInRight 0.25s ease;
 }
 
 [data-theme="dark"] .tool-panel-overlay {
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-color);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-color);
 }
 
 @keyframes slideInRight {
