@@ -133,8 +133,8 @@ function AppContent() {
             <RibbonToolbar onOpenFile={() => fileInputRef.current?.click()} />
 
             {/* Main Content Area */}
-            <div className="app-main editor-layout">
-                {/* Left/Center - PDF Viewer or compact Upload Prompt */}
+            <div className={`app-main editor-layout ${activeTool && activeDocument ? 'tool-active' : ''}`}>
+                {/* Left - PDF Viewer or compact Upload Prompt */}
                 <div className="app-content">
                 {activeDocument ? (
                         <PDFViewer />
@@ -202,14 +202,14 @@ function AppContent() {
                     )}
                 </div>
 
-                {/* Tool Panel - Slides in from right when a tool is active (except standalone tools without doc) */}
+                {/* Right - Tool Panel when active */}
                 {activeTool && (() => {
                     const standaloneTools = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
                     const isStandaloneTool = standaloneTools.includes(activeTool);
-                    // Show overlay only if there's a document OR it's not a standalone tool
+                    // Show tool panel only if there's a document OR it's not a standalone tool
                     if (activeDocument || !isStandaloneTool) {
                         return (
-                            <div className="tool-panel-overlay">
+                            <div className="tool-panel-right">
                                 <ToolPanel />
                             </div>
                         );

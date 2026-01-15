@@ -99,7 +99,7 @@
 /* ========== CATEGORIES ========== */
 .sidebar-categories {
     flex: 1;
-    padding: 8px;
+    padding: 8px 8px 8px 0;
 }
 
 .sidebar-category {

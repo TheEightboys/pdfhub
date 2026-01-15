@@ -58,7 +58,7 @@
 }
 
 .tool-header {
-    padding: 0 20px 16px !important;
+    padding: 16px 20px 16px !important;
     border-bottom: 1px solid #e5e7eb !important;
     background: #ffffff !important;
     flex-shrink: 0 !important;
@@ -105,7 +105,7 @@
     align-items: center !important;
     justify-content: space-between !important;
     gap: 12px !important;
-    padding: 12px 16px !important;
+    padding: 16px 16px 20px !important;
     border-top: 1px solid #e5e7eb !important;
     background: #f9fafb !important;
     flex-shrink: 0 !important;

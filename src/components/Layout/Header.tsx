@@ -111,7 +111,7 @@ export function Header({ onOpenFile }: HeaderProps) {
 
                 <div className="header-brand">
                     <div className="header-logo">
-                        <img src="/logo.svg" alt="PDF Editor Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                        <img src="/logo-white.svg" alt="PDF Editor Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                     </div>
                     <div className="header-brand-text">
                         <span className="header-title">PDF Editor</span>

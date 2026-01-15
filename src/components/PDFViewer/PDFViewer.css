@@ -21,13 +21,12 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: auto;
-    padding: 0 20px 4px 4px;
+    padding: 0 4px 4px 4px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 20px;
     background: #d1d5db;
-    max-width: calc(100vw - 420px);
 }
 
 [data-theme="dark"] .documents-container {
@@ -441,7 +440,6 @@
     display: flex;
     justify-content: center;
     background: #d1d5db;
-    max-width: calc(100vw - 420px);
 }
 
 [data-theme="dark"] .page-viewport {

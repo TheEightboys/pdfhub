@@ -825,25 +825,25 @@ svg {
     color: var(--text-muted);
 }
 
-/* Tool Panel Overlay - Slides in from right */
-.tool-panel-overlay {
-    position: fixed;
-    top: 134px;
-    right: 20px;
-    bottom: 0;
+/* Tool Panel Right - Inline sidebar on right side */
+.tool-panel-right {
     width: 360px;
-    max-width: calc(100vw - 32px);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
     background: var(--bg-primary);
-    border-radius: 0;
-    margin-left: 20px;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-color);
-    z-index: 90;
+    border-left: 1px solid var(--border-color);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
     overflow: hidden;
     animation: slideInRight 0.25s ease;
+    height: calc(100% - 20px);
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px 0 0 8px;
 }
 
-[data-theme="dark"] .tool-panel-overlay {
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-color);
+[data-theme="dark"] .tool-panel-right {
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes slideInRight {
@@ -858,7 +858,7 @@ svg {
     }
 }
 
-.tool-panel-overlay .tool-panel-container {
+.tool-panel-right .tool-panel-container {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -868,21 +868,21 @@ svg {
     border: none;
 }
 
-.tool-panel-overlay .tool-panel {
+.tool-panel-right .tool-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
 }
 
-.tool-panel-overlay .tool-header {
+.tool-panel-right .tool-header {
     flex-shrink: 0;
-    padding: 8px 20px 12px;
+    padding: 16px 20px 12px;
     background: var(--bg-primary);
     border-bottom: 1px solid var(--border-light);
 }
 
-.tool-panel-overlay .tool-content {
+.tool-panel-right .tool-content {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -891,25 +891,26 @@ svg {
     background: var(--bg-secondary);
 }
 
-.tool-panel-overlay .tool-footer {
+.tool-panel-right .tool-footer {
     flex-shrink: 0;
-    padding: 12px 20px;
+    padding: 16px 20px 20px;
     background: var(--bg-primary);
     border-top: 1px solid var(--border-light);
 }
 
-/* Responsive adjustments for tool panel overlay */
+/* Responsive adjustments for tool panel right */
 @media (max-width: 768px) {
-    .tool-panel-overlay {
+    .tool-panel-right {
+        position: fixed;
         top: auto;
         bottom: 0;
         left: 0;
         right: 0;
         width: 100%;
-        max-width: none;
         max-height: 70vh;
         border-radius: 16px 16px 0 0;
         animation: slideInBottom 0.25s ease;
+        z-index: 90;
     }
 
     @keyframes slideInBottom {
