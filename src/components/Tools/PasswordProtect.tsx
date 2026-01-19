@@ -1,15 +1,16 @@
 /**
  * Password Protect Tool
- * Encrypt PDFs with password protection
+ * Real PDF encryption using pdf-encrypt-lite
  */
 
 import { useState } from 'react';
-import { useApp } from '../../store/appStore';
-import { Lock, FileText, Eye, EyeOff, Shield, ShieldCheck, Download } from 'lucide-react';
+import { useApp, useToast } from '../../store/appStore';
+import { Lock, FileText, Eye, EyeOff, Shield, ShieldCheck, Download, Loader2 } from 'lucide-react';
 import './Tools.css';
 
 export function PasswordProtectTool() {
     const { state } = useApp();
+    const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [isProcessing, setIsProcessing] = useState(false);
@@ -18,6 +19,7 @@ export function PasswordProtectTool() {
     const [ownerPassword, setOwnerPassword] = useState('');
     const [showUserPassword, setShowUserPassword] = useState(false);
     const [showOwnerPassword, setShowOwnerPassword] = useState(false);
+    const [encryptedPdfBytes, setEncryptedPdfBytes] = useState<Uint8Array | null>(null);
     const [permissions, setPermissions] = useState({
         printing: true,
         copying: false,
@@ -31,17 +33,56 @@ export function PasswordProtectTool() {
 
         setIsProcessing(true);
 
-        // Simulate protection processing
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            // Dynamically import the encryption library
+            const { PDFDocument } = await import('pdf-lib');
+            const { encryptPDF } = await import('@pdfsmaller/pdf-encrypt-lite');
 
-        setIsProcessing(false);
-        setIsComplete(true);
+            // Load the PDF
+            const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
+
+            // Get PDF bytes
+            const pdfBytes = await pdfDoc.save();
+
+            // Encrypt the PDF (API: encryptPDF(bytes, userPassword, ownerPassword?))
+            const encrypted = await encryptPDF(
+                new Uint8Array(pdfBytes),
+                userPassword,
+                ownerPassword || null
+            );
+
+            setEncryptedPdfBytes(encrypted);
+            setIsComplete(true);
+            
+            addToast({
+                type: 'success',
+                title: 'PDF Encrypted!',
+                message: 'Your document is now protected with a password.',
+            });
+        } catch (error) {
+            console.error('Encryption failed:', error);
+            addToast({
+                type: 'error',
+                title: 'Encryption Failed',
+                message: 'Could not encrypt the PDF. Please try again.',
+            });
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleDownload = () => {
-        // In real implementation, would download the protected PDF
-        const filename = activeDocument?.name.replace('.pdf', '-protected.pdf') || 'protected.pdf';
-        alert(`Downloading: ${filename}`);
+        if (!encryptedPdfBytes) return;
+
+        const blob = new Blob([encryptedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = activeDocument?.name.replace('.pdf', '-protected.pdf') || 'protected.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const togglePermission = (key: keyof typeof permissions) => {
@@ -77,7 +118,7 @@ export function PasswordProtectTool() {
         );
     }
 
-    if (isComplete) {
+    if (isComplete && encryptedPdfBytes) {
         return (
             <div className="tool-panel">
                 <div className="tool-header">
@@ -96,7 +137,7 @@ export function PasswordProtectTool() {
                         <div className="success-details">
                             <div className="detail-item">
                                 <span className="detail-label">Encryption</span>
-                                <span className="detail-value">AES-256</span>
+                                <span className="detail-value">RC4 128-bit</span>
                             </div>
                             <div className="detail-item">
                                 <span className="detail-label">Document</span>
@@ -113,6 +154,7 @@ export function PasswordProtectTool() {
                             setIsComplete(false);
                             setUserPassword('');
                             setOwnerPassword('');
+                            setEncryptedPdfBytes(null);
                         }}
                     >
                         Protect Another
@@ -261,7 +303,7 @@ export function PasswordProtectTool() {
             <div className="tool-footer">
                 <div className="tool-summary">
                     <Shield size={16} />
-                    <span>AES-256 Encryption</span>
+                    <span>RC4 128-bit Encryption</span>
                 </div>
                 <button
                     className="btn btn-primary"
@@ -270,7 +312,7 @@ export function PasswordProtectTool() {
                 >
                     {isProcessing ? (
                         <>
-                            <Lock size={18} className="animate-spin" />
+                            <Loader2 size={18} className="animate-spin" />
                             <span>Encrypting...</span>
                         </>
                     ) : (

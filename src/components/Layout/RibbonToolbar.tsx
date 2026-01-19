@@ -12,7 +12,7 @@ import {
     Minimize2, Image, FileImage, FileType, FileSpreadsheet, Presentation,
     Type, ImagePlus, Crop, Maximize, Palette, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
-    Lock, Unlock, EyeOff,
+    Lock, EyeOff,
     Droplets, Hash, LayoutTemplate, ScanText, FileSearch, Layers, Wrench, Bookmark, Link,
     Sparkles, Globe,
     Sun, Moon, X, RotateCw, Trash, LayoutGrid,
@@ -159,7 +159,6 @@ const RIBBON_TABS: RibbonTab[] = [
                 name: 'Protect',
                 tools: [
                     { id: 'password-protect', name: 'Encrypt', icon: <Lock size={20} />, requiresDoc: true },
-                    { id: 'unlock', name: 'Unlock', icon: <Unlock size={20} />, requiresDoc: true },
                     { id: 'redact', name: 'Redact', icon: <EyeOff size={20} />, requiresDoc: true },
                 ],
             },

@@ -3,7 +3,7 @@
  * Main Application Component
  */
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { AppProvider, ToastProvider, useApp, useToast } from './store/appStore';
 import { RibbonToolbar } from './components/Layout/RibbonToolbar';
 import { PDFViewer } from './components/PDFViewer/PDFViewer';
@@ -22,6 +22,7 @@ function AppContent() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hasAutoRestored = useRef<boolean>(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Auto-restore last document on mount
     useEffect(() => {
@@ -94,6 +95,39 @@ function AppContent() {
         }
     }, [loadDocument, setLoading, setActiveTool, addToast]);
 
+    // Drag & drop handlers
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files).filter(
+            file => file.type === 'application/pdf'
+        );
+
+        if (files.length > 0) {
+            handleFileOpen(files);
+        } else {
+            addToast({
+                type: 'warning',
+                title: 'Invalid file',
+                message: 'Please drop a PDF file.',
+            });
+        }
+    }, [handleFileOpen, addToast]);
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -155,7 +189,12 @@ function AppContent() {
                             
                             // Show compact upload prompt
                             return (
-                                <div className="editor-upload-prompt compact">
+                                <div 
+                                    className={`editor-upload-prompt compact ${isDragging ? 'dragging' : ''}`}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
                                     <div className="upload-prompt-content">
                                         {/* Small Icon */}
                                         <div className="upload-prompt-illustration">
@@ -177,9 +216,9 @@ function AppContent() {
                                             </svg>
                                         </div>
 
-                                        <h2 className="upload-prompt-title">Upload a PDF</h2>
+                                        <h2 className="upload-prompt-title">{isDragging ? 'Drop PDF here' : 'Upload a PDF'}</h2>
                                         <p className="upload-prompt-desc">
-                                            Select a tool from the right panel, then upload your PDF.
+                                            {isDragging ? 'Release to upload' : 'Select a tool from the right panel, then upload your PDF.'}
                                         </p>
 
                                         <button

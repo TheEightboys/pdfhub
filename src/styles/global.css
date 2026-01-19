@@ -825,6 +825,31 @@ svg {
     color: var(--text-muted);
 }
 
+/* Drag & Drop States */
+.editor-upload-prompt.dragging {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 2px dashed #dc2626;
+    border-radius: 12px;
+}
+
+[data-theme="dark"] .editor-upload-prompt.dragging {
+    background: linear-gradient(135deg, #1f1414 0%, #2d1818 100%);
+    border-color: #ef4444;
+}
+
+.editor-upload-prompt.dragging .upload-prompt-illustration {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+.editor-upload-prompt.dragging .upload-prompt-title {
+    color: #dc2626;
+}
+
+[data-theme="dark"] .editor-upload-prompt.dragging .upload-prompt-title {
+    color: #ef4444;
+}
+
 /* Tool Panel Right - Inline sidebar on right side */
 .tool-panel-right {
     width: 360px;
