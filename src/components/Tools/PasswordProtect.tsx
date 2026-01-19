@@ -74,7 +74,7 @@ export function PasswordProtectTool() {
     const handleDownload = () => {
         if (!encryptedPdfBytes) return;
 
-        const blob = new Blob([encryptedPdfBytes], { type: 'application/pdf' });
+        const blob = new Blob([encryptedPdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
