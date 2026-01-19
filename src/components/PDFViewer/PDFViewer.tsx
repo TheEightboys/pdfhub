@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { useApp, useToast } from '../../store/appStore';
+import { useApp } from '../../store/appStore';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import './PDFViewer.css';
 // import { downloadPDF, savePDFWithAnnotations } from '../../utils/pdfHelpers';
@@ -1117,7 +1117,7 @@ export function PDFViewer() {
         return classes.join(' ');
     };
 
-    const { addToast } = useToast();
+    // const { addToast } = useToast();
 
     if (!activeDocument) return null;
 
