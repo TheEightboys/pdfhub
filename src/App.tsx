@@ -15,10 +15,15 @@ import './styles/global.css';
 import './styles/components.css';
 
 // Inner App component that uses the context
+import { useAutoSave } from './hooks/useAutoSave';
+
 function AppContent() {
     const { state, loadDocument, setLoading, setActiveTool } = useApp();
     const { addToast } = useToast();
-    const { activeDocument, activeTool, isLoading, loadingMessage } = state;
+    const { activeDocument, theme, sidebarCollapsed, isLoading, loadingMessage, activeTool } = state;
+
+    // Enable Auto-Save
+    useAutoSave();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hasAutoRestored = useRef<boolean>(false);

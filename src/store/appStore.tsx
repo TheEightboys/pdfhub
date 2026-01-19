@@ -20,6 +20,7 @@ const initialState: AppState = {
     loadingMessage: undefined,
     previewState: null,
     user: null,
+    saveStatus: 'saved', // Initial state
     toolOptions: {
         drawColor: '#000000',
         drawWidth: 3,
@@ -52,6 +53,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: [...state.documents, action.payload],
                 selectedPages: [],
                 isLoading: false,
+                saveStatus: 'saved',
             };
 
         case 'CLOSE_DOCUMENT':
@@ -72,7 +74,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: state.documents.map(d =>
                     d.id === updatedDoc.id ? updatedDoc : d
                 ),
+                saveStatus: 'unsaved', // Mark as unsaved on update
             };
+            
+        case 'SET_SAVE_STATUS':
+             return { ...state, saveStatus: action.payload };
 
         case 'SELECT_PAGES':
             return { ...state, selectedPages: action.payload };
@@ -111,6 +117,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: state.documents.map(d => 
                     d.id === newActiveDoc.id ? newActiveDoc : d
                 ),
+                saveStatus: 'unsaved',
             };
 
         case 'UPDATE_ANNOTATION':
@@ -196,6 +203,7 @@ interface AppContextType {
     login: (user: import('../types').User) => void;
     logout: () => void;
     setToolOptions: (options: Partial<import('../types').ToolOptions>) => void;
+    setSaveStatus: (status: 'saved' | 'saving' | 'unsaved') => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -308,6 +316,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_TOOL_OPTIONS', payload: options });
     }, []);
 
+    const setSaveStatus = useCallback((status: 'saved' | 'saving' | 'unsaved') => {
+        dispatch({ type: 'SET_SAVE_STATUS', payload: status });
+    }, []);
+
     const value: AppContextType = {
         state,
         dispatch,
@@ -334,6 +346,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         setToolOptions,
+        setSaveStatus,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -354,6 +367,7 @@ interface Toast {
     type: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message?: string;
+    duration?: number;
 }
 
 interface ToastContextType {
@@ -371,10 +385,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         setToasts(prev => [...prev, { ...toast, id }]);
 
-        // Auto-remove after 5 seconds
+        // Auto-remove after duration (default 5s)
+        const duration = toast.duration || 5000;
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
+        }, duration);
     }, []);
 
     const removeToast = useCallback((id: string) => {

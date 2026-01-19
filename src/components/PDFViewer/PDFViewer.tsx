@@ -6,9 +6,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { useApp } from '../../store/appStore';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { useApp, useToast } from '../../store/appStore';
+import { ZoomIn, ZoomOut, Save } from 'lucide-react';
 import './PDFViewer.css';
+import { downloadPDF, savePDFWithAnnotations } from '../../utils/pdfHelpers';
 import { TextInputModal } from '../UI/TextInputModal';
 import {
     Annotation,
@@ -1116,7 +1117,30 @@ export function PDFViewer() {
         return classes.join(' ');
     };
 
+    const { addToast } = useToast();
+
     if (!activeDocument) return null;
+
+    const handleSave = async () => {
+        if (!activeDocument) return;
+        try {
+            const bytes = await savePDFWithAnnotations(activeDocument);
+            downloadPDF(bytes, activeDocument.name);
+            addToast({ 
+                type: 'success', 
+                title: 'Content Saved', 
+                duration: 1000 
+            });
+        } catch (error: any) {
+            console.error('Failed to save PDF:', error);
+            const errorMsg = error?.message || (typeof error === 'string' ? error : 'Could not burn annotations.');
+            addToast({ 
+                type: 'error', 
+                title: 'Save Failed', 
+                message: errorMsg 
+            });
+        }
+    };
 
     // Scroll to a specific page
     const scrollToPage = (pageNum: number) => {
@@ -1264,6 +1288,16 @@ export function PDFViewer() {
 
                 {/* Zoom Controls at Bottom of Editor */}
                 <div className="editor-zoom-controls">
+                    <button 
+                        onClick={handleSave} 
+                        className="btn-zoom btn-save-floating" 
+                        disabled={!activeDocument}
+                        title="Save Changes (Burn Annotations)"
+                    >
+                        <Save size={16} />
+                        <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: 600 }}>Save</span>
+                    </button>
+                    <div className="zoom-divider" />
                     <button onClick={zoomOut} className="btn-zoom" title="Zoom Out">
                         <ZoomOut size={16} />
                     </button>

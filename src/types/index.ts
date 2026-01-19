@@ -168,6 +168,9 @@ export type ToolCategory =
     | 'ai-tools';
 
 export type ToolId =
+    | 'save'
+    | 'undo'
+    | 'redo'
     // Organize
     | 'merge'
     | 'split'
@@ -288,6 +291,7 @@ export interface AppState {
     loadingMessage?: string;
     previewState: PreviewState | null;
     user: User | null;
+    saveStatus: 'saved' | 'saving' | 'unsaved';
     toolOptions: ToolOptions;
 }
 
@@ -319,6 +323,7 @@ export type AppAction =
     | { type: 'UPDATE_ANNOTATION'; payload: { id: string; updates: Partial<Annotation> } }
     | { type: 'DELETE_ANNOTATION'; payload: string }
     | { type: 'SET_PREVIEW_STATE'; payload: PreviewState | null }
+    | { type: 'SET_SAVE_STATUS'; payload: 'saved' | 'saving' | 'unsaved' }
     | { type: 'LOGIN'; payload: User }
     | { type: 'LOGOUT' }
     | { type: 'SET_TOOL_OPTIONS'; payload: Partial<ToolOptions> }

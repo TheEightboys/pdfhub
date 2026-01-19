@@ -3,8 +3,8 @@
  * Core functions for PDF manipulation using pdf-lib
  */
 
-import { PDFDocument as PDFLibDocument, degrees, rgb, StandardFonts } from 'pdf-lib';
-import { PDFDocument, PDFPage, PDFMetadata, CompressionOptions, WatermarkOptions, PageNumberOptions } from '../types';
+import { PDFDocument as PDFLibDocument, degrees, rgb, StandardFonts, LineCapStyle } from 'pdf-lib';
+import { PDFDocument, PDFPage, PDFMetadata, CompressionOptions, WatermarkOptions, PageNumberOptions, TextAnnotation, ImageAnnotation, ShapeAnnotation, FreehandAnnotation, SignatureAnnotation, HighlightAnnotation, StampAnnotation } from '../types';
 import { pdfSecurityScanner } from './securityScanner';
 
 // Generate unique ID
@@ -622,10 +622,22 @@ function toAlphabetic(num: number): string {
  * Parse hex color to RGB object
  */
 function parseColor(hex: string): { r: number; g: number; b: number } {
-    const cleanHex = hex.replace('#', '');
-    const r = parseInt(cleanHex.substring(0, 2), 16) / 255;
-    const g = parseInt(cleanHex.substring(2, 4), 16) / 255;
-    const b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+    let cleanHex = hex.replace('#', '');
+
+    // Handle shorthand hex (e.g. #000)
+    if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(char => char + char).join('');
+    }
+
+    // Fallback for invalid hex
+    if (cleanHex.length !== 6) {
+        return { r: 0, g: 0, b: 0 };
+    }
+
+    const r = parseInt(cleanHex.substring(0, 2), 16) / 255 || 0;
+    const g = parseInt(cleanHex.substring(2, 4), 16) / 255 || 0;
+    const b = parseInt(cleanHex.substring(4, 6), 16) / 255 || 0;
+
     return { r, g, b };
 }
 
@@ -713,14 +725,14 @@ export async function loadPDFFromArrayBuffer(
     };
 }
 
-/**
- * Save PDF with Annotations burned in
- */
-import { TextAnnotation, ImageAnnotation, ShapeAnnotation, FreehandAnnotation, SignatureAnnotation } from '../types';
+
+// ... imports handled at top ...
 
 export async function savePDFWithAnnotations(activeDocument: PDFDocument): Promise<Uint8Array> {
     const pdfDoc = await PDFLibDocument.load(activeDocument.arrayBuffer.slice(0), { ignoreEncryption: true });
     const pages = pdfDoc.getPages();
+
+    // Embed standard fonts
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
@@ -728,166 +740,218 @@ export async function savePDFWithAnnotations(activeDocument: PDFDocument): Promi
 
     for (let i = 0; i < pages.length; i++) {
         // activeDocument.pages is 0-indexed in array, but pageNumber is 1-based
-        // Assuming activeDocument.pages corresponds to pdfDoc pages by index.
         const docPage = activeDocument.pages[i];
         if (!docPage || docPage.annotations.length === 0) continue;
 
         const page = pages[i];
         const { width: pageWidth, height: pageHeight } = page.getSize();
 
+        // Sort annotations by z-index/creation time if needed, but array order is usually enough
         for (const ann of docPage.annotations) {
-            // Coordinate conversion:
-            // Viewer: x% from left, y% from top
-            // PDF-Lib: x points from left, y points from BOTTOM
-            // Also need to handle width/height scaling
+            // Helper to convert % to PDF coordinates
+            // X: 0-100% -> 0-pageWidth
+            // Y: 0-100% (Top-Down) -> pageHeight-0 (Bottom-Up)
 
-            const x = (ann.x / 100) * pageWidth;
-            // For objects with height (rects, images), y in Viewer is Top. y in PDF-Lib is Bottom.
-            // So PDF-Lib Y = pageHeight - (ViewerTop + ViewerHeight)
-            // For text (no explicit height in same way), usually y is baseline.
+            const getX = (val: number) => (val / 100) * pageWidth;
+            const getY = (val: number) => pageHeight - (val / 100) * pageHeight;
+            const getW = (val: number) => (val / 100) * pageWidth;
+            const getH = (val: number) => (val / 100) * pageHeight;
+
+            const x = getX(ann.x);
+            // Most pdf-lib drawing uses bottom-left as origin for the object
+            // Viewer Y is Top. PDF Y is Bottom.
+            // For a rect at viewer Y with height H:
+            // Viewer bottom is Y+H.
+            // PDF Y (bottom of rect) = pageHeight - (ViewerY + ViewerH)
+            const y = pageHeight - ((ann.y + ann.height) / 100) * pageHeight;
+
+            const w = getW(ann.width);
+            const h = getH(ann.height);
+
+            const opacity = ann.opacity !== undefined ? ann.opacity : 1;
+            const color = ann.color ? parseColor(ann.color) : { r: 0, g: 0, b: 0 };
+            const pdfColor = rgb(color.r, color.g, color.b);
 
             if (ann.type === 'text') {
                 const textAnn = ann as TextAnnotation;
-                // In PDFViewer: fontSize={scaledSize} where scaledSize = (fontSize || 12) / 10 (viewBox units). 
-                // viewBox is 100x100. So size is relative to 100.
-                // 1 unit in viewBox = 1% of page dimensions.
-                // So size 1.2 = 1.2% of page height.
 
-                const pdfFontSize = (textAnn.fontSize || 12);
-                // Actually, let's trust standard font sizes. If user selected 12, they expect 12pt.
-                // But PDFViewer rendering might be using percentage based, so 12 might look different.
-                // Let's stick to the raw fontSize value if it's reasonable.
+                // Text positioning in PDF-lib is usually baseline. 
+                // In viewer, x,y is top-left of the bounding box.
+                // We'll approximate baseline offset.
+                const pdfFontSize = textAnn.fontSize || 12;
 
-                const y = pageHeight - (ann.y / 100) * pageHeight;
+                // Adjust Y to be roughly baseline (descent is about 0.2-0.3em)
+                const textY = pageHeight - (ann.y / 100) * pageHeight - pdfFontSize * 0.8;
 
                 let selectedFont = font;
                 if (textAnn.fontWeight === 'bold' && textAnn.fontStyle === 'italic') selectedFont = boldItalicFont;
                 else if (textAnn.fontWeight === 'bold') selectedFont = boldFont;
                 else if (textAnn.fontStyle === 'italic') selectedFont = italicFont;
 
-                const c = parseColor(ann.color);
                 page.drawText(textAnn.content || '', {
                     x,
-                    y, // Baseline
+                    y: textY,
                     size: pdfFontSize,
                     font: selectedFont,
-                    color: rgb(c.r, c.g, c.b),
+                    color: pdfColor,
+                    opacity: opacity,
                 });
             }
             else if (ann.type === 'image') {
                 const imgAnn = ann as ImageAnnotation;
-                if (imgAnn.file || imgAnn.preview) {
+                if (imgAnn.preview) {
                     try {
                         const imgBytes = await fetch(imgAnn.preview).then(r => r.arrayBuffer());
                         let embeddedImg;
-                        // Simple check for png vs jpg based on signature or file type
-                        // For data URL involving base64:
                         const isPng = imgAnn.preview.startsWith('data:image/png');
                         if (isPng) embeddedImg = await pdfDoc.embedPng(imgBytes);
                         else embeddedImg = await pdfDoc.embedJpg(imgBytes);
 
-                        const w = (ann.width / 100) * pageWidth;
-                        const h = (ann.height / 100) * pageHeight;
-                        const y = pageHeight - ((ann.y + ann.height) / 100) * pageHeight;
-
-                        page.drawImage(embeddedImg, {
-                            x,
-                            y,
-                            width: w,
-                            height: h,
-                        });
+                        page.drawImage(embeddedImg, { x, y, width: w, height: h, opacity });
                     } catch (e) {
                         console.error("Failed to embed image", e);
                     }
                 }
             }
-            else if (['rectangle', 'circle', 'line', 'arrow'].includes(ann.type)) {
+            else if (['rectangle', 'circle'].includes(ann.type)) {
                 const shape = ann as ShapeAnnotation;
-                const w = (ann.width / 100) * pageWidth;
-                const h = (ann.height / 100) * pageHeight;
-                const y = pageHeight - ((ann.y + ann.height) / 100) * pageHeight; // Bottom-left Y
-
                 const strokeColor = parseColor(shape.strokeColor || '#000000');
                 const fillColor = shape.fillColor && shape.fillColor !== 'transparent' ? parseColor(shape.fillColor) : undefined;
-                const strokeWidth = shape.strokeWidth || 2;
+
+                const drawOptions = {
+                    borderColor: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
+                    borderWidth: shape.strokeWidth || 2,
+                    color: fillColor ? rgb(fillColor.r, fillColor.g, fillColor.b) : undefined,
+                    opacity: opacity,
+                    borderOpacity: opacity
+                };
 
                 if (shape.type === 'rectangle') {
-                    page.drawRectangle({
-                        x, y, width: w, height: h,
-                        borderColor: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
-                        borderWidth: strokeWidth,
-                        color: fillColor ? rgb(fillColor.r, fillColor.g, fillColor.b) : undefined,
-                        opacity: ann.opacity
-                    });
+                    page.drawRectangle({ x, y, width: w, height: h, ...drawOptions });
                 }
                 else if (shape.type === 'circle') {
+                    // Ellipse in pdf-lib takes center x,y and x/y scale (radius)
                     page.drawEllipse({
                         x: x + w / 2,
-                        y: y + h / 2, // Center Y
+                        y: y + h / 2,
                         xScale: w / 2,
                         yScale: h / 2,
-                        borderColor: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
-                        borderWidth: strokeWidth,
-                        color: fillColor ? rgb(fillColor.r, fillColor.g, fillColor.b) : undefined,
-                        opacity: ann.opacity
+                        ...drawOptions
                     });
-                }
-                else if (shape.type === 'line' || shape.type === 'arrow') {
-                    // Line coords: x,y is top-left of bounding box usually?
-                    // But for lines user drags P1 to P2.
-                    // In PDFViewer currently, it renders based on x,y,w,h bounding box?
-                    // Wait, PDFViewer render for lines:
-                    // <line x1={ann.x} y1={ann.y} x2={ann.x + ann.width} y2={ann.y + ann.height} />
-                    // So P1 is top-left, P2 is bottom-right.
-
-                    const startX = x;
-                    const startY = pageHeight - (ann.y / 100) * pageHeight; // Top
-                    const endX = x + w;
-                    const endY = pageHeight - ((ann.y + ann.height) / 100) * pageHeight; // Bottom
-
-                    // Note: This logic assumes dragging always goes top-left to bottom-right.
-                    // If user dragged differently, PDFViewer might have normalized x,y,w,h.
-                    // If normalization loses direction, we might always draw diagonal.
-                    // For now this is acceptable MVP behavior.
-
-                    page.drawLine({
-                        start: { x: startX, y: startY },
-                        end: { x: endX, y: endY },
-                        thickness: strokeWidth,
-                        color: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
-                        opacity: ann.opacity
-                    });
-
-                    if (shape.type === 'arrow') {
-                        // Draw arrow head at end
-                        // const arrowSize = strokeWidth * 3;
-                        // Simple arrow pointing roughly in direction
-                        // Ideally require vector math. MVP: just draw near end.
-                    }
                 }
             }
+            else if (['line', 'arrow'].includes(ann.type)) {
+                // For lines/arrows, we need exact start/end points if preserved
+                // Currently Viewer stores these in normalized box x,y,w,h usually?
+                // Actually ShapeAnnotation definition has startPoint/endPoint, check if used.
+                // The viewer implementation seen earlier uses x,y,w,h bounding box mostly.
+                // Let's assume bounding box diagonal for now as fallback.
+
+                const shape = ann as ShapeAnnotation;
+                const strokeColor = parseColor(shape.strokeColor || '#000000');
+
+                const startX = getX(ann.x);
+                const startY = getY(ann.y); // Top
+                const endX = getX(ann.x + ann.width);
+                const endY = getY(ann.y + ann.height); // Bottom
+
+                page.drawLine({
+                    start: { x: startX, y: startY },
+                    end: { x: endX, y: endY },
+                    thickness: shape.strokeWidth || 2,
+                    color: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
+                    opacity: opacity
+                });
+
+                if (shape.type === 'arrow') {
+                    // Draw simple arrowhead at end
+                    // Just a small circle for robust MVP, or lines if possible
+                    page.drawCircle({
+                        x: endX, y: endY,
+                        size: (shape.strokeWidth || 2) * 2,
+                        color: rgb(strokeColor.r, strokeColor.g, strokeColor.b),
+                        opacity: opacity
+                    });
+                }
+            }
+            else if (ann.type === 'highlight' || ann.type === 'redact') {
+                const highlight = ann as HighlightAnnotation;
+                // Highlight is just a colored rect, usually with transparency
+                if (highlight.rects && highlight.rects.length > 0) {
+                    for (const r of highlight.rects) {
+                        page.drawRectangle({
+                            x: getX(r.x),
+                            y: pageHeight - ((r.y + r.height) / 100) * pageHeight, // Bottom Y
+                            width: getW(r.width),
+                            height: getH(r.height),
+                            color: pdfColor, // Yellow etc
+                            opacity: ann.type === 'redact' ? 1 : (opacity || 0.4),
+                        });
+                    }
+                } else {
+                    // Fallback to main rect
+                    page.drawRectangle({
+                        x, y, width: w, height: h,
+                        color: pdfColor,
+                        opacity: ann.type === 'redact' ? 1 : (opacity || 0.4),
+                    });
+                }
+            }
+            else if (ann.type === 'stamp') {
+                // Draw stamp text/box
+                const stamp = ann as StampAnnotation;
+                // Similar to rectangle + text
+                // Draw border
+                page.drawRectangle({
+                    x, y, width: w, height: h,
+                    borderColor: pdfColor,
+                    borderWidth: 3,
+                    opacity: opacity
+                });
+
+                // Draw Text centered
+                const text = stamp.customText || stamp.stampType.toUpperCase();
+                const fontSize = Math.min(18, getH(ann.height) * 0.5);
+                const textWidth = boldFont.widthOfTextAtSize(text, fontSize);
+                const textHeight = boldFont.heightAtSize(fontSize);
+
+                page.drawText(text, {
+                    x: x + (w - textWidth) / 2,
+                    y: y + (h - textHeight) / 2 + textHeight * 0.25,
+                    size: fontSize,
+                    font: boldFont,
+                    color: pdfColor,
+                    opacity: opacity
+                });
+            }
             else if (ann.type === 'freehand' || ann.type === 'signature') {
-                // Complex path rendering
                 const freehand = ann as FreehandAnnotation | SignatureAnnotation;
                 if (freehand.points && freehand.points.length > 1) {
-                    // Converting points to SVG path or multiple lines
-                    const pathStr = freehand.points.map((p) => {
-                        const px = (p.x / 100) * pageWidth;
-                        const py = pageHeight - (p.y / 100) * pageHeight;
-                        return { x: px, y: py };
-                    });
+                    const stroke = freehand.strokeWidth || 2;
+                    for (let j = 0; j < freehand.points.length - 1; j++) {
+                        const p1 = freehand.points[j];
+                        const p2 = freehand.points[j + 1];
 
-                    const c = parseColor(ann.color);
-                    for (let j = 0; j < pathStr.length - 1; j++) {
                         page.drawLine({
-                            start: pathStr[j],
-                            end: pathStr[j + 1],
-                            thickness: freehand.strokeWidth || 2,
-                            color: rgb(c.r, c.g, c.b),
-                            opacity: ann.opacity
+                            start: { x: getX(p1.x), y: getY(p1.y) },
+                            end: { x: getX(p2.x), y: getY(p2.y) },
+                            thickness: stroke,
+                            color: pdfColor,
+                            opacity: opacity,
+                            lineCap: LineCapStyle.Round,
                         });
                     }
                 }
+            }
+            else if (ann.type === 'note') {
+                // Draw a small icon for note
+                page.drawRectangle({
+                    x, y: y + h - 10,
+                    width: 10,
+                    height: 10,
+                    color: rgb(1, 1, 0), // Yellow sticky
+                });
+                // Could draw simplified 'text bubble' icon
             }
         }
     }

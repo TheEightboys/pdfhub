@@ -19,10 +19,11 @@ import {
     ShieldAlert,
     Undo2,
     Redo2,
+    Save,
     HelpCircle,
     Grid3x3,
 } from 'lucide-react';
-import { downloadPDF, getPDFBytes } from '../../utils/pdfHelpers';
+import { downloadPDF, savePDFWithAnnotations } from '../../utils/pdfHelpers';
 import { PDFSecurityScanner } from '../../utils/securityScanner';
 import { ProductNavPopup } from '../UI/ProductNavPopup';
 
@@ -58,26 +59,24 @@ export function Header({ onOpenFile }: HeaderProps) {
             });
             return;
         }
-
         try {
-            const bytes = await getPDFBytes(activeDocument.arrayBuffer.slice(0));
+            const bytes = await savePDFWithAnnotations(activeDocument);
             const newName = activeDocument.name.replace('.pdf', '_edited.pdf');
             downloadPDF(bytes, newName);
-
             addToast({
                 type: 'success',
-                title: 'Downloaded',
-                message: `Saved as ${newName}`,
+                title: 'Content Saved',
+                duration: 1000
             });
         } catch (error) {
             addToast({
                 type: 'error',
                 title: 'Download failed',
-                message: 'Could not download the PDF.',
+                message: 'Could not download the document.',
             });
         }
     };
-
+    
     // Get security status
     const securityRisk = activeDocument
         ? PDFSecurityScanner.getOverallRisk(activeDocument.securityStatus.threats)
@@ -127,6 +126,11 @@ export function Header({ onOpenFile }: HeaderProps) {
                         <span className="header-document-name" title={activeDocument.name}>
                             {activeDocument.name}
                         </span>
+                        <div className="header-save-status">
+                             {state.saveStatus === 'saving' && <span className="status-saving">Saving...</span>}
+                             {state.saveStatus === 'saved' && <span className="status-saved">Saved</span>}
+                             {state.saveStatus === 'unsaved' && <span className="status-unsaved">Unsaved changes</span>}
+                        </div>
                         <span className="header-document-pages">
                             {activeDocument.pageCount} page{activeDocument.pageCount !== 1 ? 's' : ''}
                         </span>
@@ -148,14 +152,24 @@ export function Header({ onOpenFile }: HeaderProps) {
                 <div className="header-actions">
                     <button className="header-action-btn primary" onClick={onOpenFile} title="Open PDF (Ctrl+O)">
                         <Upload size={18} />
-                        <span>Open PDF</span>
+                        <span>Open</span>
                     </button>
 
                     <button
                         className="header-action-btn"
                         onClick={handleDownload}
                         disabled={!activeDocument}
-                        title="Download PDF (Ctrl+S)"
+                        title="Save Changes (Burn Annotations)"
+                    >
+                        <Save size={18} />
+                        <span>Save</span>
+                    </button>
+
+                    <button
+                        className="header-action-btn"
+                        onClick={handleDownload}
+                        disabled={!activeDocument}
+                        title="Download PDF"
                     >
                         <Download size={18} />
                         <span>Download</span>

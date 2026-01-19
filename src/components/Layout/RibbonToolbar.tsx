@@ -17,7 +17,7 @@ import {
     Sparkles, Globe,
     Sun, Moon, X, RotateCw, Trash, LayoutGrid,
 } from 'lucide-react';
-import { downloadPDF, getPDFBytes, loadPDFFromArrayBuffer } from '../../utils/pdfHelpers';
+import { downloadPDF, savePDFWithAnnotations, loadPDFFromArrayBuffer } from '../../utils/pdfHelpers';
 import { getLastDocumentFromStorage, clearDocumentStorage, hasSavedDocument } from '../../utils/documentStorage';
 import { ProductNavPopup } from '../UI/ProductNavPopup';
 import './RibbonToolbar.css';
@@ -48,7 +48,8 @@ const RIBBON_TABS: RibbonTab[] = [
             {
                 name: 'Quick Access',
                 tools: [
-                    { id: 'merge', name: 'Merge', icon: <Combine size={20} />, requiresDoc: false },
+                    { id: 'save', name: 'Save', icon: <Save size={20} />, requiresDoc: true },
+                    { id: 'undo', name: 'Undo', icon: <Undo2 size={20} />, requiresDoc: true },
                     { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
                     { id: 'compress', name: 'Compress', icon: <Minimize2 size={20} />, requiresDoc: true },
                     { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
@@ -233,19 +234,28 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
             addToast({ type: 'warning', title: 'No document', message: 'Please open a PDF first.' });
             return;
         }
-        if (tool.id !== 'save') setActiveTool(tool.id as ToolId);
+        
+        if (tool.id === 'save') {
+            handleDownload();
+        } else {
+            setActiveTool(tool.id as ToolId);
+        }
     };
 
 
     const handleDownload = async () => {
         if (!activeDocument) return;
         try {
-            const bytes = await getPDFBytes(activeDocument.arrayBuffer.slice(0));
+            const bytes = await savePDFWithAnnotations(activeDocument);
             // Use the editable filename from the input field
             const baseName = editableFileName.replace(/\.pdf$/i, '');
-            const newName = `${baseName}_edited.pdf`;
+            const newName = `${baseName}.pdf`; // Keep original name if possible
             downloadPDF(bytes, newName);
-            addToast({ type: 'success', title: 'Saved', message: newName });
+            addToast({ 
+                type: 'success', 
+                title: 'Content Saved', 
+                duration: 1000 
+            });
         } catch { addToast({ type: 'error', title: 'Failed', message: 'Could not save.' }); }
     };
 
