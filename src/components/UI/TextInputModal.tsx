@@ -12,8 +12,10 @@ interface TextInputModalProps {
     title: string;
     placeholder?: string;
     defaultValue?: string;
-    onConfirm: (value: string) => void;
+    onConfirm: (value: string, fontSize?: number) => void;
     onCancel: () => void;
+    showFontSizeOption?: boolean;
+    initialFontSize?: number;
 }
 
 export function TextInputModal({
@@ -23,22 +25,26 @@ export function TextInputModal({
     defaultValue = '',
     onConfirm,
     onCancel,
+    showFontSizeOption = false,
+    initialFontSize = 12,
 }: TextInputModalProps) {
     const [value, setValue] = useState(defaultValue);
+    const [fontSize, setFontSize] = useState(initialFontSize);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen) {
             setValue(defaultValue);
+            setFontSize(initialFontSize);
             // Focus the input after a short delay to ensure modal is rendered
             setTimeout(() => inputRef.current?.focus(), 100);
         }
-    }, [isOpen, defaultValue]);
+    }, [isOpen, defaultValue, initialFontSize]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (value.trim()) {
-            onConfirm(value.trim());
+            onConfirm(value.trim(), fontSize);
         }
     };
 
@@ -76,11 +82,34 @@ export function TextInputModal({
                         onChange={(e) => setValue(e.target.value)}
                         autoFocus
                     />
+                    
+                    {showFontSizeOption && (
+                        <div className="text-input-options">
+                            <label className="text-sm text-gray-600 flex justify-between">
+                                <span>Font Size</span>
+                                <span>{fontSize}px</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                min="8" 
+                                max="72" 
+                                value={fontSize} 
+                                onChange={(e) => setFontSize(Number(e.target.value))}
+                                className="w-full mt-1"
+                            />
+                        </div>
+                    )}
+
                     <div className="text-input-actions">
                         <button type="button" className="text-input-btn cancel" onClick={onCancel}>
                             Cancel
                         </button>
-                        <button type="submit" className="text-input-btn confirm" disabled={!value.trim()}>
+                        <button 
+                            type="submit" 
+                            className="text-input-btn confirm" 
+                            disabled={!value.trim()}
+                            style={{ backgroundColor: '#dc2626', color: 'white' }} 
+                        >
                             Add
                         </button>
                     </div>

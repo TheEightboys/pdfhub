@@ -30,6 +30,8 @@ export function CropPagesTool() {
     const [customPages, setCustomPages] = useState('');
     const [previewPage, setPreviewPage] = useState(1);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+    const [isApplied, setIsApplied] = useState(false);
+    const [processedPDF, setProcessedPDF] = useState<{ bytes: Uint8Array; fileName: string } | null>(null);
 
     // Generate thumbnail for preview
     useEffect(() => {
@@ -97,12 +99,15 @@ export function CropPagesTool() {
 
             const pdfBytes = await pdfDoc.save();
             const fileName = activeDocument.name.replace('.pdf', '_cropped.pdf');
-            downloadPDF(pdfBytes, fileName);
+            
+            // Store processed PDF for download
+            setProcessedPDF({ bytes: pdfBytes, fileName });
+            setIsApplied(true);
 
             addToast({
                 type: 'success',
                 title: 'Pages cropped!',
-                message: `Cropped ${pagesToCrop.length} page(s) successfully`,
+                message: 'Click Download to save the file.',
             });
         } catch (error) {
             console.error('Crop failed:', error);
@@ -119,6 +124,17 @@ export function CropPagesTool() {
 
     const resetMargins = () => {
         setMargins({ top: 0, right: 0, bottom: 0, left: 0 });
+    };
+
+    const handleDownload = () => {
+        if (processedPDF) {
+            downloadPDF(processedPDF.bytes, processedPDF.fileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded',
+                message: `Saved as ${processedPDF.fileName}`,
+            });
+        }
     };
 
     if (!activeDocument) {
@@ -293,25 +309,31 @@ export function CropPagesTool() {
                     )}
                 </div>
 
-                {/* Action Button */}
                 <div className="tool-actions">
-                    <button
-                        className="btn btn-primary btn-lg"
-                        onClick={handleCrop}
-                        disabled={isProcessing}
-                    >
-                        {isProcessing ? (
-                            <>
-                                <Loader2 size={20} className="animate-spin" />
-                                Cropping...
-                            </>
-                        ) : (
-                            <>
-                                <Download size={20} />
-                                Crop & Download
-                            </>
-                        )}
-                    </button>
+                    {!isApplied ? (
+                        <button
+                            className="btn btn-primary btn-lg"
+                            onClick={handleCrop}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" />
+                                    Cropping...
+                                </>
+                            ) : (
+                                <span>Apply Crop</span>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            className="btn btn-primary btn-lg"
+                            onClick={handleDownload}
+                        >
+                            <Download size={20} />
+                            Download
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

@@ -35,7 +35,7 @@ import { PPTToPDFTool } from './PPTToPDF';
 // Edit tools
 import { CropPagesTool } from './CropPagesTool';
 import { ResizePagesTool } from './ResizePagesTool';
-import { PageBackgroundTool } from './PageBackgroundTool';
+// PageBackgroundTool removed
 // Advanced tools
 import { HeaderFooterTool } from './HeaderFooterTool';
 import { EditMetadataTool } from './EditMetadataTool';
@@ -100,8 +100,7 @@ export function ToolPanel() {
                 return <CropPagesTool />;
             case 'resize':
                 return <ResizePagesTool />;
-            case 'background':
-                return <PageBackgroundTool />;
+            // background tool removed
 
             // Annotate Tools
             case 'highlight':
@@ -150,6 +149,25 @@ export function ToolPanel() {
                 return <AISummarizeTool />;
             case 'ai-translate':
                 return <AITranslateTool />;
+
+            case 'erase':
+                return (
+                    <div className="tool-panel">
+                        <div className="tool-header">
+                            <h2 className="tool-title">Eraser</h2>
+                            <p className="tool-description">Remove annotations from the page.</p>
+                        </div>
+                        <div className="tool-content">
+                            <div className="tool-info">
+                                <p><strong>How to use:</strong></p>
+                                <ul>
+                                    <li>Click on any annotation to delete it.</li>
+                                    <li>Click and drag like a whiteboard eraser to remove freehand drawings.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                );
 
             // Default - Coming Soon
             default:

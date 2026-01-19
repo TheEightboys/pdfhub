@@ -432,6 +432,11 @@
     color: #dc2626;
 }
 
+.page-content.erase-mode {
+    cursor: none;
+    /* Hide default cursor to show custom eraser */
+}
+
 /* Page Viewport */
 .page-viewport {
     flex: 1;

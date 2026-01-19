@@ -2391,6 +2391,40 @@
     text-align: right;
 }
 
+.control-row input[type="number"] {
+    width: 80px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #111827;
+    background: #fff;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.control-row input[type="number"]:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.control-row input[type="number"]::-webkit-inner-spin-button,
+.control-row input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
+[data-theme="dark"] .control-row input[type="number"] {
+    background: rgba(31, 41, 55, 0.8);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .control-row input[type="number"]:focus {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
 /* Brush Sizes */
 .brush-sizes {
     display: flex;

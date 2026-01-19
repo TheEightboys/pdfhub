@@ -104,39 +104,51 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 ...updatedPages[pageIndex],
                 annotations: [...updatedPages[pageIndex].annotations, action.payload],
             };
+            const newActiveDoc = { ...state.activeDocument, pages: updatedPages };
             return {
                 ...state,
-                activeDocument: { ...state.activeDocument, pages: updatedPages },
+                activeDocument: newActiveDoc,
+                documents: state.documents.map(d => 
+                    d.id === newActiveDoc.id ? newActiveDoc : d
+                ),
             };
 
         case 'UPDATE_ANNOTATION':
             if (!state.activeDocument) return state;
+            const updatedActiveDocUpdate = {
+                ...state.activeDocument,
+                pages: state.activeDocument.pages.map(page => ({
+                    ...page,
+                    annotations: page.annotations.map(ann =>
+                        ann.id === action.payload.id
+                            ? { ...ann, ...action.payload.updates } as Annotation
+                            : ann
+                    ),
+                })),
+            };
             return {
                 ...state,
-                activeDocument: {
-                    ...state.activeDocument,
-                    pages: state.activeDocument.pages.map(page => ({
-                        ...page,
-                        annotations: page.annotations.map(ann =>
-                            ann.id === action.payload.id
-                                ? { ...ann, ...action.payload.updates } as Annotation
-                                : ann
-                        ),
-                    })),
-                },
+                activeDocument: updatedActiveDocUpdate,
+                documents: state.documents.map(d => 
+                    d.id === updatedActiveDocUpdate.id ? updatedActiveDocUpdate : d
+                ),
             };
 
         case 'DELETE_ANNOTATION':
             if (!state.activeDocument) return state;
+            const updatedActiveDocDelete = {
+                ...state.activeDocument,
+                pages: state.activeDocument.pages.map(page => ({
+                    ...page,
+                    annotations: page.annotations.filter(ann => ann.id !== action.payload),
+                })),
+            };
             return {
                 ...state,
-                activeDocument: {
-                    ...state.activeDocument,
-                    pages: state.activeDocument.pages.map(page => ({
-                        ...page,
-                        annotations: page.annotations.filter(ann => ann.id !== action.payload),
-                    })),
-                },
+                activeDocument: updatedActiveDocDelete,
+                documents: state.documents.map(d => 
+                    d.id === updatedActiveDocDelete.id ? updatedActiveDocDelete : d
+                ),
             };
 
         case 'LOGIN':

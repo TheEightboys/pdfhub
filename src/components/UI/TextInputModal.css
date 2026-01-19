@@ -143,6 +143,28 @@
     color: #999;
 }
 
+.text-input-options {
+    margin-top: 16px;
+    padding: 0 4px;
+}
+
+.text-input-options label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.text-input-options input[type="range"] {
+    width: 100%;
+    accent-color: #dc2626;
+    height: 6px;
+    background: #e5e5e5;
+    border-radius: 3px;
+    outline: none;
+}
+
 .text-input-actions {
     display: flex;
     gap: 10px;

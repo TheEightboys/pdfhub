@@ -63,7 +63,9 @@ export type AnnotationType =
     | 'signature'
     | 'stamp'
     | 'note'
-    | 'redact';
+    | 'redact'
+    | 'image'
+    | 'link';
 
 export interface BaseAnnotation {
     id: string;
@@ -130,6 +132,20 @@ export interface NoteAnnotation extends BaseAnnotation {
     isOpen: boolean;
 }
 
+
+export interface ImageAnnotation extends BaseAnnotation {
+    type: 'image';
+    file?: File;
+    preview: string;
+}
+
+export interface LinkAnnotation extends BaseAnnotation {
+    type: 'link';
+    linkType: 'url' | 'page';
+    url?: string;
+    targetPage?: number;
+}
+
 export type Annotation =
     | TextAnnotation
     | HighlightAnnotation
@@ -137,7 +153,9 @@ export type Annotation =
     | FreehandAnnotation
     | SignatureAnnotation
     | StampAnnotation
-    | NoteAnnotation;
+    | NoteAnnotation
+    | ImageAnnotation
+    | LinkAnnotation;
 
 // ========== Tool Types ==========
 export type ToolCategory =
@@ -174,7 +192,9 @@ export type ToolId =
     | 'add-image'
     | 'crop'
     | 'resize'
-    | 'background'
+    | 'add-image'
+    | 'crop'
+    | 'resize'
     | 'erase'
     // Annotate
     | 'highlight'
@@ -223,6 +243,16 @@ export interface ToolOptions {
     shapeStrokeColor: string;
     shapeFillColor: string;
     shapeStrokeWidth: number;
+    shapeOpacity?: number;
+    // Text Formatting Settings
+    fontSize?: number;
+    fontFamily?: string;
+    isBold?: boolean;
+    isItalic?: boolean;
+    textAlign?: 'left' | 'center' | 'right';
+
+    // Image Settings
+    pendingImage?: { file: File; preview: string } | null;
 }
 
 export interface Tool {

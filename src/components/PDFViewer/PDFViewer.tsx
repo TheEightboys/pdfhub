@@ -17,7 +17,10 @@ import {
     TextAnnotation,
     StampAnnotation,
     NoteAnnotation,
-    SignatureAnnotation
+    SignatureAnnotation,
+    ImageAnnotation,
+    ShapeAnnotation,
+    LinkAnnotation
 } from '../../types';
 
 // Configure PDF.js worker
@@ -30,7 +33,9 @@ export function PDFViewer() {
         zoomOut,
         addAnnotation,
         updateAnnotation,
-        deleteAnnotation
+        deleteAnnotation,
+        setToolOptions,
+        setActiveTool
     } = useApp();
 
     const { activeDocument, zoom, viewMode, selectedPages, activeTool, toolOptions } = state;
@@ -59,13 +64,20 @@ export function PDFViewer() {
         title: string;
         placeholder: string;
         defaultValue: string;
-        onConfirm: (value: string) => void;
+        showFontSizeOption?: boolean;
+        initialFontSize?: number;
+        onConfirm: (value: string, fontSize?: number) => void;
     } | null>(null);
 
     // Annotation Selection & Manipulation State
     const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
     const [isDraggingAnnotation, setIsDraggingAnnotation] = useState(false);
+    const [isResizingAnnotation, setIsResizingAnnotation] = useState(false);
+    const [resizeHandle, setResizeHandle] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
+    // Eraser Visual State
+    const [eraserCursor, setEraserCursor] = useState<{ x: number, y: number, pageNum: number } | null>(null);
 
     // Keyboard handler for Delete key
     useEffect(() => {
@@ -336,7 +348,7 @@ export function PDFViewer() {
                         content: noteText,
                         isOpen: true,
                         pageNumber: pageNum,
-                        x: point.x, y: point.y, width: 5, height: 5,
+                        x: point.x, y: point.y, width: 12, height: 12, // Larger default size
                         rotation: 0, opacity: 1, color: toolOptions.noteColor || '#fef08a',
                         createdAt: new Date(), updatedAt: new Date()
                     };
@@ -352,7 +364,9 @@ export function PDFViewer() {
                 title: 'Add Text',
                 placeholder: 'Enter your text...',
                 defaultValue: '',
-                onConfirm: (userText: string) => {
+                showFontSizeOption: true,
+                initialFontSize: toolOptions.fontSize || 12,
+                onConfirm: (userText: string, fontSize?: number) => {
                     const newText: TextAnnotation = {
                         id: `text-${Date.now()}`,
                         type: 'text',
@@ -361,7 +375,11 @@ export function PDFViewer() {
                         x: point.x, y: point.y, width: 20, height: 5,
                         rotation: 0, opacity: 1, color: toolOptions.drawColor || '#000000',
                         createdAt: new Date(), updatedAt: new Date(),
-                        fontSize: 12, fontFamily: 'Arial', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left'
+                        fontSize: fontSize || toolOptions.fontSize || 12,
+                        fontFamily: toolOptions.fontFamily || 'Arial',
+                        fontWeight: toolOptions.isBold ? 'bold' : 'normal',
+                        fontStyle: toolOptions.isItalic ? 'italic' : 'normal',
+                        textAlign: toolOptions.textAlign || 'left'
                     };
                     addAnnotation(newText);
                     setTextModalOpen(false);
@@ -369,23 +387,135 @@ export function PDFViewer() {
             });
             setTextModalOpen(true);
         }
+        else if (activeTool === 'add-image' && toolOptions.pendingImage) {
+            const img = toolOptions.pendingImage;
+            
+            const newImage: ImageAnnotation = {
+                id: `image-${Date.now()}`,
+                type: 'image',
+                preview: img.preview,
+                file: img.file,
+                pageNumber: pageNum,
+                x: point.x, y: point.y, 
+                width: 20, height: 20, // Default size 20%
+                rotation: 0, opacity: 1, color: '#000000',
+                createdAt: new Date(), updatedAt: new Date()
+            };
+            addAnnotation(newImage);
+            // Clear the pending image so next click doesn't add it again
+            setToolOptions({ ...toolOptions, pendingImage: null });
+            setActiveTool(null); 
+        }
+        else if (activeTool === 'shapes' && toolOptions.shapeType) {
+             const shapeType = toolOptions.shapeType;
+             const newShape: ShapeAnnotation = {
+                id: `shape-${Date.now()}`,
+                type: shapeType,
+                pageNumber: pageNum,
+                x: point.x, y: point.y, 
+                width: 15, height: 15,
+                rotation: 0, 
+                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1, 
+                color: '#000000', // Unused for shapes usually, but part of BaseAnnotation
+                strokeColor: toolOptions.shapeStrokeColor || '#000000',
+                fillColor: toolOptions.shapeFillColor || 'transparent',
+                strokeWidth: toolOptions.shapeStrokeWidth || 2,
+                createdAt: new Date(), updatedAt: new Date()
+            };
+            addAnnotation(newShape);
+            // Keep shape tool active for multiple shapes or clear it?
+            // Usually shape tools stay active.
+        }
+    };
+
+    // --- Resize Logic ---
+    const handleResizeStart = (e: React.MouseEvent, ann: Annotation, handle: string) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setSelectedAnnotationId(ann.id);
+        setIsResizingAnnotation(true);
+        setResizeHandle(handle);
+    };
+
+    const handleResizeMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!isResizingAnnotation || !selectedAnnotationId || !resizeHandle) return;
+        
+        const point = getPoint(e);
+        // Find current annotation
+        // This is inefficient but functional for now. Ideally pass ann to this closure or use a ref.
+        // Since we only have ID, we have to find it in activeDocument.pages
+        // But activeDocument isn't easy to update partially without a full scan
+        // Better: trigger 'updateAnnotation' with delta calculation
+        
+        // We'll dispatch a special UPDATE that handles logic or calculate here
+        // Since we don't have the original rect here easily, let's assume `updateAnnotation` can merge
+        // Actually we need the original or current values.
+        // Let's rely on finding the annotation in `activeDocument`
+        
+        let targetAnn: Annotation | null = null;
+        for(const p of activeDocument?.pages || []) {
+            const found = p.annotations.find(a => a.id === selectedAnnotationId);
+            if(found) { targetAnn = found; break; }
+        }
+
+        if (!targetAnn) return;
+
+        const updates: any = {};
+        const { x, y, width, height } = targetAnn;
+
+        // Simple resizing logic (percentages)
+        if (resizeHandle.includes('e')) updates.width = Math.max(1, point.x - x);
+        if (resizeHandle.includes('s')) updates.height = Math.max(1, point.y - y);
+        if (resizeHandle.includes('w')) {
+            const diffX = point.x - x;
+            updates.x = point.x;
+            updates.width = Math.max(1, width - diffX);
+        }
+        if (resizeHandle.includes('n')) {
+            const diffY = point.y - y;
+            updates.y = point.y;
+            updates.height = Math.max(1, height - diffY);
+        }
+
+        updateAnnotation(selectedAnnotationId, updates);
+    };
+
+    const handleResizeEnd = () => {
+        setIsResizingAnnotation(false);
+        setResizeHandle(null);
     };
 
     // --- Annotation Manipulation ---
     const handleAnnotationSelect = (e: React.MouseEvent, annotationId: string) => {
         e.stopPropagation();
+        
+        if (activeTool === 'erase') {
+            deleteAnnotation(annotationId);
+            return;
+        }
+
+        if (isResizingAnnotation) return;
         setSelectedAnnotationId(annotationId);
     };
 
     const handleAnnotationDragStart = (e: React.MouseEvent, ann: Annotation) => {
         e.stopPropagation();
-        const target = e.currentTarget as HTMLElement;
-        const rect = target.getBoundingClientRect();
-        const pointX = ((e.clientX - rect.left) / rect.width) * 100;
-        const pointY = ((e.clientY - rect.top) / rect.height) * 100;
+        
+        // Find the page container element to get proper coordinates relative to the page
+        const pageElement = (e.target as HTMLElement).closest('.page-wrapper');
+        if (!pageElement) return;
+
+        const rect = pageElement.getBoundingClientRect();
+        
+        // Calculate click position as percentage of PAGE dimensions
+        const pageX = ((e.clientX - rect.left) / rect.width) * 100;
+        const pageY = ((e.clientY - rect.top) / rect.height) * 100;
+
         setSelectedAnnotationId(ann.id);
         setIsDraggingAnnotation(true);
-        setDragOffset({ x: pointX - ann.x, y: pointY - ann.y });
+        
+        // Offset is strictly: ClickPos% - AnnotationPos%
+        setDragOffset({ x: pageX - ann.x, y: pageY - ann.y });
     };
 
     const handleAnnotationDragMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -402,16 +532,127 @@ export function PDFViewer() {
         setIsDraggingAnnotation(false);
     };
 
+    // --- Selection UI (HTML Layer) ---
+    const renderSelectionOverlay = (ann: Annotation) => {
+        if (selectedAnnotationId !== ann.id) return null;
+        
+        // For text, we estimate bounds differently if we want to wrap it tightly, 
+        // but for now relying on ann.width/height is safer if we keep them updated.
+        // (Text resizing logic usually updates width/height).
+        
+        return (
+            <div
+                key={`overlay-${ann.id}`}
+                className="annotation-selection-overlay"
+                style={{
+                    position: 'absolute',
+                    left: `${ann.x}%`,
+                    top: `${ann.y}%`,
+                    width: `${ann.width}%`,
+                    height: `${ann.height}%`,
+                    pointerEvents: 'auto', // Capture mouse for moving
+                    cursor: isDraggingAnnotation ? 'grabbing' : 'grab',
+                    border: '1px dashed #3b82f6',
+                    boxSizing: 'content-box' // Ensure border doesn't shrink content
+                }}
+                onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+            >
+                {/* Delete Button - Fixed Size HTML */}
+                <div
+                    title="Delete"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        deleteAnnotation(ann.id);
+                    }}
+                    style={{
+                        position: 'absolute',
+                        top: '-12px',
+                        right: '-12px',
+                        width: '24px',
+                        height: '24px',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        fontSize: '14px',
+                        zIndex: 10
+                    }}
+                >
+                    ×
+                </div>
+
+                {/* Resize Handles */}
+                {['nw', 'ne', 'sw', 'se'].map((h) => {
+                    // Position handles
+                    const style: React.CSSProperties = {
+                        position: 'absolute',
+                        width: '10px',
+                        height: '10px',
+                        backgroundColor: 'white',
+                        border: '1px solid #3b82f6',
+                        borderRadius: '50%',
+                        pointerEvents: 'auto',
+                        zIndex: 5
+                    };
+                    
+                    if (h.includes('n')) style.top = '-5px';
+                    if (h.includes('s')) style.bottom = '-5px';
+                    if (h.includes('w')) style.left = '-5px';
+                    if (h.includes('e')) style.right = '-5px';
+                    
+                    style.cursor = `${h}-resize`;
+
+                    return (
+                        <div
+                            key={h}
+                            style={style}
+                            onMouseDown={(e) => handleResizeStart(e, ann, h)}
+                        />
+                    );
+                })}
+            </div>
+        );
+    };
+
     // --- Mouse Event Handlers ---
     const handleMouseDown = (pageNum: number, e: React.MouseEvent<HTMLDivElement>) => {
         // If dragging annotation, don't start other actions
-        if (isDraggingAnnotation) return;
+        if (isDraggingAnnotation || isResizingAnnotation) return;
         
         if (activeTool === 'draw' || activeTool === 'signature') {
             startDrawing(e);
         } else if (activeTool === 'highlight' || activeTool === 'redact') {
             startRegion(e);
-        } else if (activeTool === 'stamp' || activeTool === 'notes' || activeTool === 'add-text') {
+        } else if (activeTool === 'shapes' && toolOptions.shapeType) {
+            // Start creating a shape via drag interaction
+            const point = getPoint(e);
+            
+            const shapeType = toolOptions.shapeType;
+            const newShape: ShapeAnnotation = {
+                id: `shape-${Date.now()}`,
+                type: shapeType,
+                pageNumber: pageNum,
+                x: point.x, y: point.y, 
+                width: 0, height: 0, // Starts with 0 size
+                rotation: 0, 
+                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1, 
+                color: '#000000', 
+                strokeColor: toolOptions.shapeStrokeColor || '#dc2626',
+                fillColor: toolOptions.shapeFillColor || 'transparent',
+                strokeWidth: toolOptions.shapeStrokeWidth || 1,
+                createdAt: new Date(), updatedAt: new Date()
+            };
+            
+            addAnnotation(newShape);
+            setSelectedAnnotationId(newShape.id);
+            // Simulate resize "SE" (Southeast) immediately to allow dragging out the shape
+            setIsResizingAnnotation(true);
+            setResizeHandle('se');
+        } else if (activeTool === 'stamp' || activeTool === 'notes' || activeTool === 'add-text' || activeTool === 'add-image') {
             handlePlacement(pageNum, e);
         } else if (!activeTool) {
             // Clicking on page background deselects annotation
@@ -420,17 +661,69 @@ export function PDFViewer() {
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (isDraggingAnnotation) {
+        if (isResizingAnnotation) {
+            handleResizeMove(e);
+        } else if (isDraggingAnnotation) {
             handleAnnotationDragMove(e);
         } else if (isDrawing) {
             drawMove(e);
         } else if (isSelectingRegion) {
             updateRegion(e);
         }
+        
+        // Eraser Drag Logic
+        if (activeTool === 'erase') {
+             const pageWrapper = (e.target as HTMLElement).closest('.page-wrapper');
+             if (pageWrapper) {
+                 const rect = pageWrapper.getBoundingClientRect();
+                 const pageNumStr = pageWrapper.getAttribute('data-page-number');
+                 const pageNum = pageNumStr ? parseInt(pageNumStr) : 0;
+                 
+                 // Initial cursor tracking (visual only)
+                 const relX = ((e.clientX - rect.left) / rect.width) * 100;
+                 const relY = ((e.clientY - rect.top) / rect.height) * 100;
+                 setEraserCursor({ x: relX, y: relY, pageNum });
+                 
+                 // Actual Deletion (if button pressed)
+                 if (e.buttons === 1) {
+                    const x = relX;
+                    const y = relY;
+                    
+                    // 2. Find intersecting annotations
+                    const page = activeDocument?.pages.find(p => p.pageNumber === pageNum);
+                    if (!page) return;
+                    
+                    const eraserRadius = 3; 
+                    
+                    page.annotations.forEach(ann => {
+                        let isHit = false;
+                        if (ann.type === 'freehand' || ann.type === 'signature') {
+                            const intersects = x >= ann.x - eraserRadius && x <= ann.x + ann.width + eraserRadius &&
+                                              y >= ann.y - eraserRadius && y <= ann.y + ann.height + eraserRadius;
+                            isHit = intersects;
+                        } else {
+                            const intersects = x >= ann.x && x <= ann.x + ann.width &&
+                                              y >= ann.y && y <= ann.y + ann.height;
+                            isHit = intersects;
+                        }
+                        
+                        if (isHit) {
+                            deleteAnnotation(ann.id);
+                        }
+                    });
+                 }
+             } else {
+                 setEraserCursor(null);
+             }
+        } else {
+             setEraserCursor(null);
+        }
     };
 
     const handleMouseUp = (pageNum: number) => {
-        if (isDraggingAnnotation) {
+        if (isResizingAnnotation) {
+            handleResizeEnd();
+        } else if (isDraggingAnnotation) {
             handleAnnotationDragEnd();
         } else if (isDrawing) {
             stopDrawing(pageNum);
@@ -448,16 +741,45 @@ export function PDFViewer() {
                     const stroke = ann as FreehandAnnotation | SignatureAnnotation;
                     if (!stroke.points || stroke.points.length < 2) return null;
                     const pathD = stroke.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                    const isSelectedVal = selectedAnnotationId === ann.id;
                     return (
-                        <path
+                        <g 
                             key={ann.id}
-                            d={pathD}
-                            stroke={ann.color}
-                            strokeWidth={stroke.strokeWidth || 2}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            fill="none"
-                        />
+                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
+                            onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                        >
+                            {/* Invisible thick path for easier selection */}
+                            <path
+                                d={pathD}
+                                stroke="transparent"
+                                strokeWidth={(stroke.strokeWidth || 2) + 4} // Increase hit area
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                             {/* Selection Glow */}
+                             {isSelectedVal && (
+                                <path
+                                    d={pathD}
+                                    stroke="#3b82f6"
+                                    strokeWidth={(stroke.strokeWidth || 2) + 2}
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    opacity="0.5"
+                                />
+                            )}
+                            {/* Actual drawing */}
+                            <path
+                                d={pathD}
+                                stroke={ann.color}
+                                strokeWidth={stroke.strokeWidth || 2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                fill="none"
+                            />
+                        </g>
                     );
 
                 case 'highlight':
@@ -506,12 +828,17 @@ export function PDFViewer() {
                     const note = ann as NoteAnnotation;
                     const noteContent = note.content || '';
 
-                    // Dynamic sizing based on content
+                    // Dynamic sizing fallback if width/height not set
                     const hasContent = noteContent.length > 0;
-                    const noteWidth = hasContent ? Math.min(12, Math.max(5, noteContent.length * 0.5)) : 4;
-                    const noteHeight = hasContent ? Math.min(8, Math.max(4, Math.ceil(noteContent.length / 15) * 2 + 2)) : 4;
+                    // Use stored dimensions if available, otherwise calculate defaults
+                    const finalWidth = ann.width || (hasContent ? Math.min(12, Math.max(5, noteContent.length * 0.5)) : 5);
+                    const finalHeight = ann.height || (hasContent ? Math.min(8, Math.max(4, Math.ceil(noteContent.length / 15) * 2 + 2)) : 5);
 
                     const handleNoteClick = (e: React.MouseEvent) => {
+                        handleAnnotationSelect(e, ann.id);
+                    };
+
+                    const handleNoteDoubleClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
                         setTextModalConfig({
                             title: 'Edit Note',
@@ -531,52 +858,44 @@ export function PDFViewer() {
                     const lines = displayText ? displayText.match(/.{1,12}/g) || [] : [];
 
                     return (
-                        <g key={ann.id} transform={`translate(${ann.x}, ${ann.y})`} style={{ cursor: 'pointer', pointerEvents: 'auto' }}>
-                            {/* Note background */}
-                            <rect
-                                x={-noteWidth / 2} y={-noteHeight / 2}
-                                width={noteWidth} height={noteHeight}
-                                fill={ann.color || '#fef08a'}
-                                stroke="rgba(0,0,0,0.2)"
-                                strokeWidth="0.08"
-                                rx="0.3"
-                                filter="url(#noteShadow)"
-                                onClick={handleNoteClick}
-                            />
-                            {/* Folded corner effect */}
+                        <g 
+                            key={ann.id} 
+                            // transform removed, using direct x/y
+                            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+                            onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
+                            onClick={handleNoteClick}
+                            onDoubleClick={handleNoteDoubleClick}
+                        >
+                            {/* Note Background */}
                             <path
-                                d={`M${noteWidth / 2 - 1},${-noteHeight / 2} L${noteWidth / 2},${-noteHeight / 2 + 1} L${noteWidth / 2 - 1},${-noteHeight / 2 + 1} Z`}
-                                fill="rgba(0,0,0,0.1)"
+                                d={`M${ann.x} ${ann.y} h${finalWidth} v${finalHeight - 2} l-2 2 h-${finalWidth - 2} z`} // Folded corner effect
+                                fill={ann.color || '#fef3c7'}
+                                stroke="#d1d5db"
+                                strokeWidth="0.1"
+                                filter="url(#noteShadow)"
                             />
-                            {/* Text content */}
-                            {hasContent ? (
-                                <>
-                                    {lines.slice(0, 3).map((line, i) => (
-                                        <text
-                                            key={i}
-                                            x={-noteWidth / 2 + 0.4}
-                                            y={-noteHeight / 2 + 1.2 + i * 1.1}
-                                            fill="#333"
-                                            fontSize="0.9"
-                                            fontFamily="Arial, sans-serif"
-                                            onClick={handleNoteClick}
-                                        >
-                                            {line}
-                                        </text>
-                                    ))}
-                                </>
-                            ) : (
+                            {/* Folded Corner */}
+                            <path
+                                d={`M${ann.x + finalWidth - 2} ${ann.y + finalHeight - 2} v2 h2 z`}
+                                fill="#e5e7eb"
+                                stroke="#d1d5db"
+                                strokeWidth="0.1"
+                            />
+                            
+                            {/* Text Content */}
+                            {lines.map((line, i) => (
                                 <text
-                                    x="0" y="0.3"
-                                    fill="#999"
-                                    fontSize="0.8"
-                                    textAnchor="middle"
-                                    fontStyle="italic"
-                                    onClick={handleNoteClick}
+                                    key={i}
+                                    x={ann.x + 0.5}
+                                    y={ann.y + 1.5 + (i * 1.2)}
+                                    fontSize="1"
+                                    fontFamily="Arial"
+                                    fill="#4b5563"
+                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
                                 >
-                                    Click to add
+                                    {line}
                                 </text>
-                            )}
+                            ))}
                         </g>
                     );
 
@@ -648,6 +967,138 @@ export function PDFViewer() {
                         </g>
                     );
 
+                case 'image':
+                    const imgAnn = ann as ImageAnnotation;
+                    return (
+                        <g 
+                           key={ann.id}
+                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                        >
+                            <image
+                                x={ann.x} y={ann.y}
+                                width={ann.width} height={ann.height}
+                                href={imgAnn.preview}
+                                preserveAspectRatio="none"
+                                style={{ pointerEvents: 'none' }} 
+                            />
+                            {/* Invisible hit area for easier selection if image has transparency */}
+                             <rect
+                                x={ann.x} y={ann.y}
+                                width={ann.width} height={ann.height}
+                                fill="transparent"
+                                stroke="none"
+                                style={{ pointerEvents: 'auto' }}
+                            />
+                        </g>
+                    );
+
+                case 'rectangle':
+                case 'circle':
+                case 'arrow':
+                case 'line':
+                    const shape = ann as ShapeAnnotation;
+                    // Scale stroke width: User input 1-10 should map to reasonable SVG % thickness (e.g. 0.1% to 1%)
+                    const scaledStroke = (shape.strokeWidth || 1) * 0.15;
+                    
+                    return (
+                        <g 
+                            key={ann.id}
+                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                        >
+                            {ann.type === 'rectangle' && (
+                                <rect
+                                    x={ann.x} y={ann.y}
+                                    width={ann.width} height={ann.height}
+                                    stroke={shape.strokeColor}
+                                    strokeWidth={scaledStroke}
+                                    fill={shape.fillColor || 'none'}
+                                    vectorEffect="non-scaling-stroke"
+                                    style={{ pointerEvents: 'auto' }} 
+                                />
+                            )}
+                            {ann.type === 'circle' && (
+                                <ellipse
+                                    cx={ann.x + ann.width / 2} cy={ann.y + ann.height / 2}
+                                    rx={ann.width / 2} ry={ann.height / 2}
+                                    stroke={shape.strokeColor}
+                                    strokeWidth={scaledStroke}
+                                    fill={shape.fillColor || 'none'}
+                                    vectorEffect="non-scaling-stroke"
+                                    style={{ pointerEvents: 'auto' }}
+                                />
+                            )}
+                            {ann.type === 'line' && (
+                                <line
+                                    x1={ann.x} y1={ann.y}
+                                    x2={ann.x + ann.width} y2={ann.y + ann.height}
+                                    stroke={shape.strokeColor}
+                                    strokeWidth={scaledStroke}
+                                    vectorEffect="non-scaling-stroke"
+                                    style={{ pointerEvents: 'auto' }}
+                                />
+                            )}
+                            {ann.type === 'arrow' && (
+                                <g>
+                                    <defs>
+                                        <marker
+                                            id={`arrowhead-${ann.id}`}
+                                            markerWidth="10" markerHeight="7"
+                                            refX="9" refY="3.5"
+                                            orient="auto"
+                                        >
+                                            <polygon points="0 0, 10 3.5, 0 7" fill={shape.strokeColor} />
+                                        </marker>
+                                    </defs>
+                                    <line
+                                        x1={ann.x} y1={ann.y}
+                                        x2={ann.x + ann.width} y2={ann.y + ann.height}
+                                        stroke={shape.strokeColor}
+                                        strokeWidth={scaledStroke}
+                                        markerEnd={`url(#arrowhead-${ann.id})`}
+                                        vectorEffect="non-scaling-stroke"
+                                        style={{ pointerEvents: 'auto' }}
+                                    />
+                                </g>
+                            )}
+                        </g>
+                    );
+
+                case 'link':
+                    const linkAnn = ann as LinkAnnotation;
+                    return (
+                        <g 
+                            key={ann.id}
+                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                        >
+                            <rect
+                                x={ann.x} y={ann.y}
+                                width={ann.width} height={ann.height}
+                                fill="rgba(66, 133, 244, 0.2)" // Light blue transparent
+                                stroke="#4285f4"
+                                strokeWidth="0.5"
+                                strokeDasharray="4,2"
+                                vectorEffect="non-scaling-stroke"
+                                style={{ pointerEvents: 'auto' }}
+                            />
+                            {/* Visual Label */}
+                            <text
+                                x={ann.x + 2}
+                                y={ann.y + 4}
+                                fontSize="3"
+                                fill="#2563eb"
+                                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                            >
+                                {linkAnn.linkType === 'url' ? '🔗 URL' : `📄 Page ${linkAnn.targetPage}`}
+                            </text>
+                        </g>
+                    );
+
                 default:
                     return null;
             }
@@ -661,6 +1112,7 @@ export function PDFViewer() {
         else if (activeTool === 'signature') classes.push('signature-mode');
         else if (activeTool === 'highlight' || activeTool === 'redact') classes.push('selection-mode');
         else if (activeTool === 'add-text') classes.push('add-text-mode');
+        else if (activeTool === 'erase') classes.push('erase-mode');
         return classes.join(' ');
     };
 
@@ -742,7 +1194,10 @@ export function PDFViewer() {
                                         <div className="page-placeholder loading"></div>
                                     )}
 
-                                    {/* Annotations Layer */}
+                                    {/* Selection Overlays (HTML Layer) */}
+                                    {page.annotations.map(ann => renderSelectionOverlay(ann))}
+
+                                    {/* Annotations Layer (SVG) */}
                                     <svg
                                         className="annotations-overlay"
                                         viewBox="0 0 100 100"
@@ -785,7 +1240,19 @@ export function PDFViewer() {
                                                 width={Math.abs(currentRegion.endX - currentRegion.startX)}
                                                 height={Math.abs(currentRegion.endY - currentRegion.startY)}
                                                 fill={activeTool === 'highlight' ? toolOptions.drawColor || '#FFFF00' : '#000000'}
-                                                fillOpacity={0.4}
+                                            />
+                                        )}
+
+                                        {/* Eraser Visual Cursor */}
+                                        {activeTool === 'erase' && eraserCursor && eraserCursor.pageNum === page.pageNumber && (
+                                            <circle
+                                                cx={eraserCursor.x}
+                                                cy={eraserCursor.y}
+                                                r="3" 
+                                                fill="rgba(255, 255, 255, 0.5)"
+                                                stroke="#000"
+                                                strokeWidth="0.5"
+                                                pointerEvents="none" 
                                             />
                                         )}
                                     </svg>
@@ -812,7 +1279,7 @@ export function PDFViewer() {
                     </div>
                 )}
             </div>
-
+            
             {/* Text Input Modal */}
             {textModalConfig && (
                 <TextInputModal
@@ -820,6 +1287,8 @@ export function PDFViewer() {
                     title={textModalConfig.title}
                     placeholder={textModalConfig.placeholder}
                     defaultValue={textModalConfig.defaultValue}
+                    showFontSizeOption={textModalConfig.showFontSizeOption}
+                    initialFontSize={textModalConfig.initialFontSize}
                     onConfirm={textModalConfig.onConfirm}
                     onCancel={() => {
                         setTextModalOpen(false);

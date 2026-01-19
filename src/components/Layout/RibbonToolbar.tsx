@@ -77,7 +77,6 @@ const RIBBON_TABS: RibbonTab[] = [
                 tools: [
                     { id: 'crop', name: 'Crop', icon: <Crop size={20} />, requiresDoc: true },
                     { id: 'resize', name: 'Resize', icon: <Maximize size={20} />, requiresDoc: true },
-                    { id: 'background', name: 'Background', icon: <Palette size={20} />, requiresDoc: true },
                 ],
             },
             {

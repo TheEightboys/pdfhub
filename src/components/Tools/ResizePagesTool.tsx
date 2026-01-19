@@ -42,6 +42,8 @@ export function ResizePagesTool() {
     const [applyTo, setApplyTo] = useState<'all' | 'custom'>('all');
     const [customPages, setCustomPages] = useState('');
     const [currentPageSize, setCurrentPageSize] = useState({ width: 0, height: 0 });
+    const [isApplied, setIsApplied] = useState(false);
+    const [processedPDF, setProcessedPDF] = useState<{ bytes: Uint8Array; fileName: string } | null>(null);
 
     // Get current page size
     useEffect(() => {
@@ -143,12 +145,15 @@ export function ResizePagesTool() {
 
             const pdfBytes = await newPdf.save();
             const fileName = activeDocument.name.replace('.pdf', '_resized.pdf');
-            downloadPDF(pdfBytes, fileName);
+            
+            // Store processed PDF for download
+            setProcessedPDF({ bytes: pdfBytes, fileName });
+            setIsApplied(true);
 
             addToast({
                 type: 'success',
                 title: 'Pages resized!',
-                message: `Resized ${pagesToResize.length} page(s) to ${selectedSize}`,
+                message: 'Click Download to save the file.',
             });
         } catch (error) {
             console.error('Resize failed:', error);
@@ -162,6 +167,17 @@ export function ResizePagesTool() {
             setLoading(false);
         }
     }, [activeDocument, selectedSize, customWidth, customHeight, orientation, fitContent, applyTo, customPages, setLoading, addToast]);
+
+    const handleDownload = () => {
+        if (processedPDF) {
+            downloadPDF(processedPDF.bytes, processedPDF.fileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded',
+                message: `Saved as ${processedPDF.fileName}`,
+            });
+        }
+    };
 
     if (!activeDocument) {
         return (
@@ -346,25 +362,31 @@ export function ResizePagesTool() {
                     </div>
                 </div>
 
-                {/* Action Button */}
                 <div className="tool-actions">
-                    <button
-                        className="btn btn-primary btn-lg"
-                        onClick={handleResize}
-                        disabled={isProcessing}
-                    >
-                        {isProcessing ? (
-                            <>
-                                <Loader2 size={20} className="animate-spin" />
-                                Resizing...
-                            </>
-                        ) : (
-                            <>
-                                <Download size={20} />
-                                Resize & Download
-                            </>
-                        )}
-                    </button>
+                    {!isApplied ? (
+                        <button
+                            className="btn btn-primary btn-lg"
+                            onClick={handleResize}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" />
+                                    Resizing...
+                                </>
+                            ) : (
+                                <span>Apply Resize</span>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            className="btn btn-primary btn-lg"
+                            onClick={handleDownload}
+                        >
+                            <Download size={20} />
+                            Download
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

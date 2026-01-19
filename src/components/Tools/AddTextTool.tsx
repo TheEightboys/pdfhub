@@ -40,6 +40,11 @@ export function AddTextTool() {
         // Set tool options and activate add-text mode
         setToolOptions({
             drawColor: textColor,
+            fontSize: fontSize,
+            fontFamily: fontFamily,
+            isBold: isBold,
+            isItalic: isItalic,
+            textAlign: alignment,
         });
         setActiveTool('add-text');
     };
