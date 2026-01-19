@@ -3,7 +3,7 @@
  * Insert images into PDF pages
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { ImagePlus, Upload } from 'lucide-react';
 import './Tools.css';

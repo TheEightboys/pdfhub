@@ -193,6 +193,7 @@ export type ToolId =
     | 'crop'
     | 'resize'
     | 'add-image'
+    | 'background'
     | 'crop'
     | 'resize'
     | 'erase'

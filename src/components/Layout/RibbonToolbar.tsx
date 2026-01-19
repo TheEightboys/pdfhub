@@ -10,7 +10,7 @@ import {
     Upload, FileText, Save, Undo2, Redo2,
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
     Minimize2, Image, FileImage, FileType, FileSpreadsheet, Presentation,
-    Type, ImagePlus, Crop, Maximize, Palette, Eraser,
+    Type, ImagePlus, Crop, Maximize, Eraser,
     Highlighter, Pencil, Shapes, PenTool, Stamp, StickyNote,
     Lock, EyeOff,
     Droplets, Hash, LayoutTemplate, ScanText, FileSearch, Layers, Wrench, Bookmark, Link,
