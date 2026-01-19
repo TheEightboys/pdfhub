@@ -20,7 +20,7 @@ import { useAutoSave } from './hooks/useAutoSave';
 function AppContent() {
     const { state, loadDocument, setLoading, setActiveTool } = useApp();
     const { addToast } = useToast();
-    const { activeDocument, theme, sidebarCollapsed, isLoading, loadingMessage, activeTool } = state;
+    const { activeDocument, isLoading, loadingMessage, activeTool } = state;
 
     // Enable Auto-Save
     useAutoSave();

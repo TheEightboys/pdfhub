@@ -9,7 +9,6 @@ import { useApp, useToast } from '../../store/appStore';
 import {
     FileText,
     Upload,
-    Download,
     Sun,
     Moon,
     Menu,
@@ -150,13 +149,13 @@ export function Header({ onOpenFile }: HeaderProps) {
 
             <div className="header-right">
                 <div className="header-actions">
-                    <button className="header-action-btn primary" onClick={onOpenFile} title="Open PDF (Ctrl+O)">
+                    <button className="header-action-btn" onClick={onOpenFile} title="Open PDF (Ctrl+O)">
                         <Upload size={18} />
                         <span>Open</span>
                     </button>
 
                     <button
-                        className="header-action-btn"
+                        className="header-action-btn primary"
                         onClick={handleDownload}
                         disabled={!activeDocument}
                         title="Save Changes (Burn Annotations)"
@@ -165,15 +164,7 @@ export function Header({ onOpenFile }: HeaderProps) {
                         <span>Save</span>
                     </button>
 
-                    <button
-                        className="header-action-btn"
-                        onClick={handleDownload}
-                        disabled={!activeDocument}
-                        title="Download PDF"
-                    >
-                        <Download size={18} />
-                        <span>Download</span>
-                    </button>
+
                 </div>
 
                 <div className="header-divider" />

@@ -1,6 +1,6 @@
 
 import { useEffect, useRef } from 'react';
-import { useApp, useToast } from '../store/appStore';
+import { useApp } from '../store/appStore';
 import { saveDocumentToStorage } from '../utils/documentStorage';
 import { savePDFWithAnnotations } from '../utils/pdfHelpers';
 

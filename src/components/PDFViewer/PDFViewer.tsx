@@ -7,9 +7,9 @@
 import { useEffect, useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useApp, useToast } from '../../store/appStore';
-import { ZoomIn, ZoomOut, Save } from 'lucide-react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import './PDFViewer.css';
-import { downloadPDF, savePDFWithAnnotations } from '../../utils/pdfHelpers';
+// import { downloadPDF, savePDFWithAnnotations } from '../../utils/pdfHelpers';
 import { TextInputModal } from '../UI/TextInputModal';
 import {
     Annotation,
@@ -1121,6 +1121,7 @@ export function PDFViewer() {
 
     if (!activeDocument) return null;
 
+    /* Hidden as per user request
     const handleSave = async () => {
         if (!activeDocument) return;
         try {
@@ -1141,6 +1142,7 @@ export function PDFViewer() {
             });
         }
     };
+    */
 
     // Scroll to a specific page
     const scrollToPage = (pageNum: number) => {
@@ -1288,6 +1290,7 @@ export function PDFViewer() {
 
                 {/* Zoom Controls at Bottom of Editor */}
                 <div className="editor-zoom-controls">
+                    {/* Hidden as per user request, but functionality preserved
                     <button 
                         onClick={handleSave} 
                         className="btn-zoom btn-save-floating" 
@@ -1297,7 +1300,7 @@ export function PDFViewer() {
                         <Save size={16} />
                         <span style={{ marginLeft: '4px', fontSize: '12px', fontWeight: 600 }}>Save</span>
                     </button>
-                    <div className="zoom-divider" />
+                    <div className="zoom-divider" /> */}
                     <button onClick={zoomOut} className="btn-zoom" title="Zoom Out">
                         <ZoomOut size={16} />
                     </button>
