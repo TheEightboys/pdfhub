@@ -43,6 +43,7 @@ export function StickyNotesTool() {
 
     const handleSizeChange = (size: typeof NOTE_SIZES[0]) => {
         setNoteSize(size);
+        setToolOptions({ noteSize: size.value as 'small' | 'medium' | 'large' });
     };
 
     const removeNote = (id: string) => {

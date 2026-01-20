@@ -25,6 +25,7 @@ const initialState: AppState = {
         drawColor: '#000000',
         drawWidth: 3,
         noteColor: '#fef08a',
+        noteSize: 'medium',
         shapeType: 'rectangle',
         shapeStrokeColor: '#000000',
         shapeFillColor: 'transparent',
@@ -76,9 +77,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 ),
                 saveStatus: 'unsaved', // Mark as unsaved on update
             };
-            
+
         case 'SET_SAVE_STATUS':
-             return { ...state, saveStatus: action.payload };
+            return { ...state, saveStatus: action.payload };
 
         case 'SELECT_PAGES':
             return { ...state, selectedPages: action.payload };
@@ -114,7 +115,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
             return {
                 ...state,
                 activeDocument: newActiveDoc,
-                documents: state.documents.map(d => 
+                documents: state.documents.map(d =>
                     d.id === newActiveDoc.id ? newActiveDoc : d
                 ),
                 saveStatus: 'unsaved',
@@ -136,7 +137,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
             return {
                 ...state,
                 activeDocument: updatedActiveDocUpdate,
-                documents: state.documents.map(d => 
+                documents: state.documents.map(d =>
                     d.id === updatedActiveDocUpdate.id ? updatedActiveDocUpdate : d
                 ),
             };
@@ -153,7 +154,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
             return {
                 ...state,
                 activeDocument: updatedActiveDocDelete,
-                documents: state.documents.map(d => 
+                documents: state.documents.map(d =>
                     d.id === updatedActiveDocDelete.id ? updatedActiveDocDelete : d
                 ),
             };

@@ -85,7 +85,7 @@ export function PDFViewer() {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
                 // Don't delete if user is typing in an input
-                if (document.activeElement?.tagName === 'INPUT' || 
+                if (document.activeElement?.tagName === 'INPUT' ||
                     document.activeElement?.tagName === 'TEXTAREA') {
                     return;
                 }
@@ -152,19 +152,19 @@ export function PDFViewer() {
         observerRef.current = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const pageNum = parseInt(entry.target.getAttribute('data-page-number') || '0');
-                
+
                 if (entry.isIntersecting && entry.intersectionRatio > 0.2) {
                     visiblePages.add(pageNum);
                 } else {
                     visiblePages.delete(pageNum);
                 }
-                
+
                 // Render page if not already rendered
                 if (entry.isIntersecting && pageNum > 0 && !renderedPagesRef.current[pageNum] && !pendingRendersRef.current.has(pageNum)) {
                     requestAnimationFrame(() => renderPage(pageNum));
                 }
             });
-            
+
             // Update current page to the smallest visible page number (topmost)
             if (visiblePages.size > 0) {
                 const topmostPage = Math.min(...Array.from(visiblePages));
@@ -343,13 +343,23 @@ export function PDFViewer() {
                 placeholder: 'Enter note text...',
                 defaultValue: '',
                 onConfirm: (noteText: string) => {
+                    const noteSize = toolOptions.noteSize || 'medium';
+                    // Define dimensions based on size - larger sizes for better readability
+                    const dimensions = {
+                        small: { width: 10, height: 10 },
+                        medium: { width: 15, height: 15 },
+                        large: { width: 20, height: 20 }
+                    };
+                    const { width, height } = dimensions[noteSize];
+
                     const newNote: NoteAnnotation = {
                         id: `note-${Date.now()}`,
                         type: 'note',
                         content: noteText,
                         isOpen: true,
+                        size: noteSize,
                         pageNumber: pageNum,
-                        x: point.x, y: point.y, width: 12, height: 12, // Larger default size
+                        x: point.x, y: point.y, width, height,
                         rotation: 0, opacity: 1, color: toolOptions.noteColor || '#fef08a',
                         createdAt: new Date(), updatedAt: new Date()
                     };
@@ -390,14 +400,14 @@ export function PDFViewer() {
         }
         else if (activeTool === 'add-image' && toolOptions.pendingImage) {
             const img = toolOptions.pendingImage;
-            
+
             const newImage: ImageAnnotation = {
                 id: `image-${Date.now()}`,
                 type: 'image',
                 preview: img.preview,
                 file: img.file,
                 pageNumber: pageNum,
-                x: point.x, y: point.y, 
+                x: point.x, y: point.y,
                 width: 20, height: 20, // Default size 20%
                 rotation: 0, opacity: 1, color: '#000000',
                 createdAt: new Date(), updatedAt: new Date()
@@ -405,18 +415,18 @@ export function PDFViewer() {
             addAnnotation(newImage);
             // Clear the pending image so next click doesn't add it again
             setToolOptions({ ...toolOptions, pendingImage: null });
-            setActiveTool(null); 
+            setActiveTool(null);
         }
         else if (activeTool === 'shapes' && toolOptions.shapeType) {
-             const shapeType = toolOptions.shapeType;
-             const newShape: ShapeAnnotation = {
+            const shapeType = toolOptions.shapeType;
+            const newShape: ShapeAnnotation = {
                 id: `shape-${Date.now()}`,
                 type: shapeType,
                 pageNumber: pageNum,
-                x: point.x, y: point.y, 
+                x: point.x, y: point.y,
                 width: 15, height: 15,
-                rotation: 0, 
-                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1, 
+                rotation: 0,
+                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1,
                 color: '#000000', // Unused for shapes usually, but part of BaseAnnotation
                 strokeColor: toolOptions.shapeStrokeColor || '#000000',
                 fillColor: toolOptions.shapeFillColor || 'transparent',
@@ -440,23 +450,23 @@ export function PDFViewer() {
 
     const handleResizeMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isResizingAnnotation || !selectedAnnotationId || !resizeHandle) return;
-        
+
         const point = getPoint(e);
         // Find current annotation
         // This is inefficient but functional for now. Ideally pass ann to this closure or use a ref.
         // Since we only have ID, we have to find it in activeDocument.pages
         // But activeDocument isn't easy to update partially without a full scan
         // Better: trigger 'updateAnnotation' with delta calculation
-        
+
         // We'll dispatch a special UPDATE that handles logic or calculate here
         // Since we don't have the original rect here easily, let's assume `updateAnnotation` can merge
         // Actually we need the original or current values.
         // Let's rely on finding the annotation in `activeDocument`
-        
+
         let targetAnn: Annotation | null = null;
-        for(const p of activeDocument?.pages || []) {
+        for (const p of activeDocument?.pages || []) {
             const found = p.annotations.find(a => a.id === selectedAnnotationId);
-            if(found) { targetAnn = found; break; }
+            if (found) { targetAnn = found; break; }
         }
 
         if (!targetAnn) return;
@@ -489,7 +499,7 @@ export function PDFViewer() {
     // --- Annotation Manipulation ---
     const handleAnnotationSelect = (e: React.MouseEvent, annotationId: string) => {
         e.stopPropagation();
-        
+
         if (activeTool === 'erase') {
             deleteAnnotation(annotationId);
             return;
@@ -501,31 +511,31 @@ export function PDFViewer() {
 
     const handleAnnotationDragStart = (e: React.MouseEvent, ann: Annotation) => {
         e.stopPropagation();
-        
+
         // Find the page container element to get proper coordinates relative to the page
         const pageElement = (e.target as HTMLElement).closest('.page-wrapper');
         if (!pageElement) return;
 
         const rect = pageElement.getBoundingClientRect();
-        
+
         // Calculate click position as percentage of PAGE dimensions
         const pageX = ((e.clientX - rect.left) / rect.width) * 100;
         const pageY = ((e.clientY - rect.top) / rect.height) * 100;
 
         setSelectedAnnotationId(ann.id);
         setIsDraggingAnnotation(true);
-        
+
         // Offset is strictly: ClickPos% - AnnotationPos%
         setDragOffset({ x: pageX - ann.x, y: pageY - ann.y });
     };
 
     const handleAnnotationDragMove = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!isDraggingAnnotation || !selectedAnnotationId) return;
-        
+
         const point = getPoint(e);
         const newX = Math.max(0, Math.min(100, point.x - dragOffset.x));
         const newY = Math.max(0, Math.min(100, point.y - dragOffset.y));
-        
+
         updateAnnotation(selectedAnnotationId, { x: newX, y: newY } as any);
     };
 
@@ -536,11 +546,11 @@ export function PDFViewer() {
     // --- Selection UI (HTML Layer) ---
     const renderSelectionOverlay = (ann: Annotation) => {
         if (selectedAnnotationId !== ann.id) return null;
-        
+
         // For text, we estimate bounds differently if we want to wrap it tightly, 
         // but for now relying on ann.width/height is safer if we keep them updated.
         // (Text resizing logic usually updates width/height).
-        
+
         return (
             <div
                 key={`overlay-${ann.id}`}
@@ -599,12 +609,12 @@ export function PDFViewer() {
                         pointerEvents: 'auto',
                         zIndex: 5
                     };
-                    
+
                     if (h.includes('n')) style.top = '-5px';
                     if (h.includes('s')) style.bottom = '-5px';
                     if (h.includes('w')) style.left = '-5px';
                     if (h.includes('e')) style.right = '-5px';
-                    
+
                     style.cursor = `${h}-resize`;
 
                     return (
@@ -623,7 +633,7 @@ export function PDFViewer() {
     const handleMouseDown = (pageNum: number, e: React.MouseEvent<HTMLDivElement>) => {
         // If dragging annotation, don't start other actions
         if (isDraggingAnnotation || isResizingAnnotation) return;
-        
+
         if (activeTool === 'draw' || activeTool === 'signature') {
             startDrawing(e);
         } else if (activeTool === 'highlight' || activeTool === 'redact') {
@@ -631,23 +641,23 @@ export function PDFViewer() {
         } else if (activeTool === 'shapes' && toolOptions.shapeType) {
             // Start creating a shape via drag interaction
             const point = getPoint(e);
-            
+
             const shapeType = toolOptions.shapeType;
             const newShape: ShapeAnnotation = {
                 id: `shape-${Date.now()}`,
                 type: shapeType,
                 pageNumber: pageNum,
-                x: point.x, y: point.y, 
+                x: point.x, y: point.y,
                 width: 0, height: 0, // Starts with 0 size
-                rotation: 0, 
-                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1, 
-                color: '#000000', 
+                rotation: 0,
+                opacity: toolOptions.shapeOpacity !== undefined ? toolOptions.shapeOpacity : 1,
+                color: '#000000',
                 strokeColor: toolOptions.shapeStrokeColor || '#dc2626',
                 fillColor: toolOptions.shapeFillColor || 'transparent',
                 strokeWidth: toolOptions.shapeStrokeWidth || 1,
                 createdAt: new Date(), updatedAt: new Date()
             };
-            
+
             addAnnotation(newShape);
             setSelectedAnnotationId(newShape.id);
             // Simulate resize "SE" (Southeast) immediately to allow dragging out the shape
@@ -671,53 +681,53 @@ export function PDFViewer() {
         } else if (isSelectingRegion) {
             updateRegion(e);
         }
-        
+
         // Eraser Drag Logic
         if (activeTool === 'erase') {
-             const pageWrapper = (e.target as HTMLElement).closest('.page-wrapper');
-             if (pageWrapper) {
-                 const rect = pageWrapper.getBoundingClientRect();
-                 const pageNumStr = pageWrapper.getAttribute('data-page-number');
-                 const pageNum = pageNumStr ? parseInt(pageNumStr) : 0;
-                 
-                 // Initial cursor tracking (visual only)
-                 const relX = ((e.clientX - rect.left) / rect.width) * 100;
-                 const relY = ((e.clientY - rect.top) / rect.height) * 100;
-                 setEraserCursor({ x: relX, y: relY, pageNum });
-                 
-                 // Actual Deletion (if button pressed)
-                 if (e.buttons === 1) {
+            const pageWrapper = (e.target as HTMLElement).closest('.page-wrapper');
+            if (pageWrapper) {
+                const rect = pageWrapper.getBoundingClientRect();
+                const pageNumStr = pageWrapper.getAttribute('data-page-number');
+                const pageNum = pageNumStr ? parseInt(pageNumStr) : 0;
+
+                // Initial cursor tracking (visual only)
+                const relX = ((e.clientX - rect.left) / rect.width) * 100;
+                const relY = ((e.clientY - rect.top) / rect.height) * 100;
+                setEraserCursor({ x: relX, y: relY, pageNum });
+
+                // Actual Deletion (if button pressed)
+                if (e.buttons === 1) {
                     const x = relX;
                     const y = relY;
-                    
+
                     // 2. Find intersecting annotations
                     const page = activeDocument?.pages.find(p => p.pageNumber === pageNum);
                     if (!page) return;
-                    
-                    const eraserRadius = 3; 
-                    
+
+                    const eraserRadius = 3;
+
                     page.annotations.forEach(ann => {
                         let isHit = false;
                         if (ann.type === 'freehand' || ann.type === 'signature') {
                             const intersects = x >= ann.x - eraserRadius && x <= ann.x + ann.width + eraserRadius &&
-                                              y >= ann.y - eraserRadius && y <= ann.y + ann.height + eraserRadius;
+                                y >= ann.y - eraserRadius && y <= ann.y + ann.height + eraserRadius;
                             isHit = intersects;
                         } else {
                             const intersects = x >= ann.x && x <= ann.x + ann.width &&
-                                              y >= ann.y && y <= ann.y + ann.height;
+                                y >= ann.y && y <= ann.y + ann.height;
                             isHit = intersects;
                         }
-                        
+
                         if (isHit) {
                             deleteAnnotation(ann.id);
                         }
                     });
-                 }
-             } else {
-                 setEraserCursor(null);
-             }
+                }
+            } else {
+                setEraserCursor(null);
+            }
         } else {
-             setEraserCursor(null);
+            setEraserCursor(null);
         }
     };
 
@@ -744,7 +754,7 @@ export function PDFViewer() {
                     const pathD = stroke.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
                     const isSelectedVal = selectedAnnotationId === ann.id;
                     return (
-                        <g 
+                        <g
                             key={ann.id}
                             style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab', pointerEvents: 'auto' }}
                             onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
@@ -759,8 +769,8 @@ export function PDFViewer() {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                             />
-                             {/* Selection Glow */}
-                             {isSelectedVal && (
+                            {/* Selection Glow */}
+                            {isSelectedVal && (
                                 <path
                                     d={pathD}
                                     stroke="#3b82f6"
@@ -829,11 +839,19 @@ export function PDFViewer() {
                     const note = ann as NoteAnnotation;
                     const noteContent = note.content || '';
 
-                    // Dynamic sizing fallback if width/height not set
-                    const hasContent = noteContent.length > 0;
                     // Use stored dimensions if available, otherwise calculate defaults
-                    const finalWidth = ann.width || (hasContent ? Math.min(12, Math.max(5, noteContent.length * 0.5)) : 5);
-                    const finalHeight = ann.height || (hasContent ? Math.min(8, Math.max(4, Math.ceil(noteContent.length / 15) * 2 + 2)) : 5);
+                    const hasContent = noteContent.length > 0;
+                    const finalWidth = ann.width || (hasContent ? Math.min(15, Math.max(8, noteContent.length * 0.5)) : 10);
+                    const finalHeight = ann.height || (hasContent ? Math.min(12, Math.max(6, Math.ceil(noteContent.length / 15) * 2 + 2)) : 10);
+
+                    // PROPORTIONAL font size scaling based on actual note dimensions
+                    // This ensures text scales when notes are resized via drag handles
+                    const baseFontMultiplier = 0.08;
+                    const noteFontSize = Math.max(0.7, Math.min(2.5, finalWidth * baseFontMultiplier));
+                    const noteLineHeight = noteFontSize * 1.3;
+
+                    // Dynamic padding based on note size
+                    const notePadding = Math.max(0.4, finalWidth * 0.04);
 
                     const handleNoteClick = (e: React.MouseEvent) => {
                         handleAnnotationSelect(e, ann.id);
@@ -854,14 +872,24 @@ export function PDFViewer() {
                         setTextModalOpen(true);
                     };
 
-                    // Truncate long text for display
-                    const displayText = noteContent.length > 30 ? noteContent.substring(0, 27) + '...' : noteContent;
-                    const lines = displayText ? displayText.match(/.{1,12}/g) || [] : [];
+                    // Dynamic text layout based on available width
+                    const availableTextWidth = finalWidth - (notePadding * 2);
+                    const avgCharWidth = noteFontSize * 0.6;
+                    const charsPerLine = Math.max(5, Math.floor(availableTextWidth / avgCharWidth));
+
+                    // Calculate max lines that fit
+                    const maxLines = Math.max(1, Math.floor((finalHeight - notePadding * 2 - 1) / noteLineHeight));
+                    const maxChars = charsPerLine * maxLines;
+                    const displayText = noteContent.length > maxChars
+                        ? noteContent.substring(0, maxChars - 3) + '...'
+                        : noteContent;
+
+                    // Wrap text dynamically based on available width
+                    const lines = displayText ? displayText.match(new RegExp(`.{1,${charsPerLine}}`, 'g')) || [] : [];
 
                     return (
-                        <g 
-                            key={ann.id} 
-                            // transform removed, using direct x/y
+                        <g
+                            key={ann.id}
                             style={{ cursor: 'pointer', pointerEvents: 'auto' }}
                             onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
                             onClick={handleNoteClick}
@@ -869,7 +897,7 @@ export function PDFViewer() {
                         >
                             {/* Note Background */}
                             <path
-                                d={`M${ann.x} ${ann.y} h${finalWidth} v${finalHeight - 2} l-2 2 h-${finalWidth - 2} z`} // Folded corner effect
+                                d={`M${ann.x} ${ann.y} h${finalWidth} v${finalHeight - 2} l-2 2 h-${finalWidth - 2} z`}
                                 fill={ann.color || '#fef3c7'}
                                 stroke="#d1d5db"
                                 strokeWidth="0.1"
@@ -882,16 +910,16 @@ export function PDFViewer() {
                                 stroke="#d1d5db"
                                 strokeWidth="0.1"
                             />
-                            
-                            {/* Text Content */}
-                            {lines.map((line, i) => (
+
+                            {/* Text Content with Proportional Font Size */}
+                            {lines.slice(0, maxLines).map((line, i) => (
                                 <text
                                     key={i}
-                                    x={ann.x + 0.5}
-                                    y={ann.y + 1.5 + (i * 1.2)}
-                                    fontSize="1"
-                                    fontFamily="Arial"
-                                    fill="#4b5563"
+                                    x={ann.x + notePadding}
+                                    y={ann.y + notePadding + noteFontSize + (i * noteLineHeight)}
+                                    fontSize={noteFontSize}
+                                    fontFamily="Arial, sans-serif"
+                                    fill="#374151"
                                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                                 >
                                     {line}
@@ -971,21 +999,21 @@ export function PDFViewer() {
                 case 'image':
                     const imgAnn = ann as ImageAnnotation;
                     return (
-                        <g 
-                           key={ann.id}
-                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
-                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
-                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                        <g
+                            key={ann.id}
+                            onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                            onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
                         >
                             <image
                                 x={ann.x} y={ann.y}
                                 width={ann.width} height={ann.height}
                                 href={imgAnn.preview}
                                 preserveAspectRatio="none"
-                                style={{ pointerEvents: 'none' }} 
+                                style={{ pointerEvents: 'none' }}
                             />
                             {/* Invisible hit area for easier selection if image has transparency */}
-                             <rect
+                            <rect
                                 x={ann.x} y={ann.y}
                                 width={ann.width} height={ann.height}
                                 fill="transparent"
@@ -1002,13 +1030,13 @@ export function PDFViewer() {
                     const shape = ann as ShapeAnnotation;
                     // Scale stroke width: User input 1-10 should map to reasonable SVG % thickness (e.g. 0.1% to 1%)
                     const scaledStroke = (shape.strokeWidth || 1) * 0.15;
-                    
+
                     return (
-                        <g 
+                        <g
                             key={ann.id}
-                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
-                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
-                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                            onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                            onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
                         >
                             {ann.type === 'rectangle' && (
                                 <rect
@@ -1018,7 +1046,7 @@ export function PDFViewer() {
                                     strokeWidth={scaledStroke}
                                     fill={shape.fillColor || 'none'}
                                     vectorEffect="non-scaling-stroke"
-                                    style={{ pointerEvents: 'auto' }} 
+                                    style={{ pointerEvents: 'auto' }}
                                 />
                             )}
                             {ann.type === 'circle' && (
@@ -1071,11 +1099,11 @@ export function PDFViewer() {
                 case 'link':
                     const linkAnn = ann as LinkAnnotation;
                     return (
-                        <g 
+                        <g
                             key={ann.id}
-                           onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
-                           onClick={(e) => handleAnnotationSelect(e, ann.id)}
-                           style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                            onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
+                            onClick={(e) => handleAnnotationSelect(e, ann.id)}
+                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
                         >
                             <rect
                                 x={ann.x} y={ann.y}
@@ -1162,7 +1190,7 @@ export function PDFViewer() {
                             key={page.pageNumber}
                             className={`thumbnail-item ${selectedPages.includes(page.pageNumber) ? 'active' : ''}`}
                         >
-                            <div 
+                            <div
                                 className="thumbnail-preview"
                                 onClick={() => scrollToPage(page.pageNumber)}
                             >
@@ -1274,11 +1302,11 @@ export function PDFViewer() {
                                             <circle
                                                 cx={eraserCursor.x}
                                                 cy={eraserCursor.y}
-                                                r="3" 
+                                                r="3"
                                                 fill="rgba(255, 255, 255, 0.5)"
                                                 stroke="#000"
                                                 strokeWidth="0.5"
-                                                pointerEvents="none" 
+                                                pointerEvents="none"
                                             />
                                         )}
                                     </svg>
@@ -1316,7 +1344,7 @@ export function PDFViewer() {
                     </div>
                 )}
             </div>
-            
+
             {/* Text Input Modal */}
             {textModalConfig && (
                 <TextInputModal

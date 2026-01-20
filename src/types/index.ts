@@ -130,6 +130,7 @@ export interface NoteAnnotation extends BaseAnnotation {
     type: 'note';
     content: string;
     isOpen: boolean;
+    size?: 'small' | 'medium' | 'large';
 }
 
 
@@ -241,6 +242,7 @@ export interface ToolOptions {
 
     // Note Settings
     noteColor: string;
+    noteSize?: 'small' | 'medium' | 'large';
 
     // Shape Settings
     shapeType: 'rectangle' | 'circle' | 'arrow' | 'line';
