@@ -29,10 +29,11 @@ const STAMP_COLORS = [
 ];
 
 const STAMP_SIZES = [
-    { label: 'S', value: 'small', scale: 0.7 },
-    { label: 'M', value: 'medium', scale: 1 },
-    { label: 'L', value: 'large', scale: 1.3 },
-    { label: 'XL', value: 'xlarge', scale: 1.6 },
+    { label: 'XS', value: 'xsmall', scale: 0.6, fontSize: 10 },
+    { label: 'S', value: 'small', scale: 0.8, fontSize: 14 },
+    { label: 'M', value: 'medium', scale: 1.0, fontSize: 18 },
+    { label: 'L', value: 'large', scale: 1.3, fontSize: 24 },
+    { label: 'XL', value: 'xlarge', scale: 1.6, fontSize: 32 },
 ];
 
 export function StampTool() {
@@ -52,7 +53,8 @@ export function StampTool() {
                 text: stamp.text,
                 color: stamp.color,
                 type: 'predefined',
-                size: stampSize.value
+                size: stampSize.value,
+                fontSize: stampSize.fontSize
             }
         });
     };
@@ -63,7 +65,8 @@ export function StampTool() {
                 ...selectedStamp,
                 text: text.toUpperCase(),
                 type: 'custom',
-                size: stampSize.value
+                size: stampSize.value,
+                fontSize: stampSize.fontSize
             }
         });
     };
@@ -73,7 +76,8 @@ export function StampTool() {
             selectedStamp: {
                 ...selectedStamp,
                 color: color,
-                size: stampSize.value
+                size: stampSize.value,
+                fontSize: stampSize.fontSize
             }
         });
     };
@@ -84,7 +88,8 @@ export function StampTool() {
             setToolOptions({
                 selectedStamp: {
                     ...selectedStamp,
-                    size: size.value
+                    size: size.value,
+                    fontSize: size.fontSize
                 }
             });
         }
@@ -122,12 +127,13 @@ export function StampTool() {
                         <Maximize2 size={14} />
                         Stamp Size
                     </h4>
-                    <div className="size-options">
+                    <div className="size-options" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         {STAMP_SIZES.map(size => (
                             <button
                                 key={size.value}
                                 className={`size-btn ${stampSize.value === size.value ? 'active' : ''}`}
                                 onClick={() => handleSizeChange(size)}
+                                style={{ minWidth: '48px', letterSpacing: '0.5px' }}
                             >
                                 {size.label}
                             </button>
@@ -173,12 +179,13 @@ export function StampTool() {
                         <div style={{
                             border: `3px solid ${selectedStamp.color}`,
                             color: selectedStamp.color,
-                            padding: `${8 * stampSize.scale}px ${16 * stampSize.scale}px`,
+                            padding: `${stampSize.fontSize * 0.5}px ${stampSize.fontSize}px`,
                             fontWeight: 'bold',
-                            fontSize: `${18 * stampSize.scale}px`,
+                            fontSize: `${stampSize.fontSize}px`,
                             transform: 'rotate(-12deg)',
                             whiteSpace: 'nowrap',
-                            letterSpacing: '2px'
+                            letterSpacing: `${stampSize.fontSize * 0.2}px`, // Proportional letter spacing
+                            textTransform: 'uppercase'
                         }}>
                             {selectedStamp.text || 'STAMP'}
                         </div>
@@ -212,7 +219,12 @@ export function StampTool() {
                 </div>
                 <button
                     className="btn btn-primary"
-                    onClick={() => setActiveTool(null)}
+                    onClick={() => {
+                        // Done button closes the stamp tool
+                        // Stamps are already placed on the document as you click
+                        setActiveTool(null);
+                    }}
+                    title="Close stamp tool (stamps are already applied)"
                 >
                     <CheckCircle2 size={18} />
                     <span>Done</span>

@@ -2372,6 +2372,7 @@
     border: none;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 .control-row input[type="range"]::-webkit-slider-thumb {
@@ -6074,13 +6075,20 @@
 }
 
 .style-btn.active {
-    background: #dc2626;
-    color: #fff;
+    background: #dc2626 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
 }
 
 [data-theme="dark"] .style-btn:hover {
     background: #374151;
     color: #e5e7eb;
+}
+
+[data-theme="dark"] .style-btn.active {
+    background: #dc2626 !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
 }
 
 .style-divider {

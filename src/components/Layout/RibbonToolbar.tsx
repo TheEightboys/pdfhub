@@ -3,7 +3,7 @@
  * Compact Microsoft Word-like ribbon toolbar
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { ToolId } from '../../types';
 import {
@@ -50,6 +50,7 @@ const RIBBON_TABS: RibbonTab[] = [
                 tools: [
                     { id: 'save', name: 'Save', icon: <Save size={20} />, requiresDoc: true },
                     { id: 'undo', name: 'Undo', icon: <Undo2 size={20} />, requiresDoc: true },
+                    { id: 'redo', name: 'Redo', icon: <Redo2 size={20} />, requiresDoc: true },
                     { id: 'split', name: 'Split', icon: <Split size={20} />, requiresDoc: true },
                     { id: 'compress', name: 'Compress', icon: <Minimize2 size={20} />, requiresDoc: true },
                     { id: 'rotate', name: 'Rotate', icon: <RotateCcw size={20} />, requiresDoc: true },
@@ -207,13 +208,42 @@ interface RibbonToolbarProps {
 }
 
 export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
-    const { state, setActiveTool, toggleTheme, closeDocument, loadDocument } = useApp();
+    const { state, setActiveTool, toggleTheme, closeDocument, loadDocument, undo, redo, canUndo, canRedo } = useApp();
     const { addToast } = useToast();
     const { theme, activeDocument, activeTool } = state;
     const [activeTab, setActiveTab] = useState<string>('home');
     const [editableFileName, setEditableFileName] = useState<string>('');
     const [hasSavedDoc, setHasSavedDoc] = useState<boolean>(false);
     const [isProductNavOpen, setIsProductNavOpen] = useState(false);
+
+    // Track last toast time to prevent duplicate notifications
+    const lastUndoToastTime = useRef<number>(0);
+    const lastRedoToastTime = useRef<number>(0);
+    const TOAST_DEBOUNCE_MS = 1000; // Show toast at most once per second
+
+    // Keyboard shortcuts for undo/redo
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check if we're in an input field - don't intercept there
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (canUndo) undo();
+                } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+                    e.preventDefault();
+                    if (canRedo) redo();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [canUndo, canRedo, undo, redo]);
 
     // Check for saved document on mount
     useEffect(() => {
@@ -234,9 +264,30 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
             addToast({ type: 'warning', title: 'No document', message: 'Please open a PDF first.' });
             return;
         }
-        
+
+        // Handle immediate actions (don't open a panel)
         if (tool.id === 'save') {
             handleDownload();
+        } else if (tool.id === 'undo') {
+            if (canUndo) {
+                undo();
+                // Show toast only once per second even with rapid clicks
+                const now = Date.now();
+                if (now - lastUndoToastTime.current > TOAST_DEBOUNCE_MS) {
+                    addToast({ type: 'info', title: 'Undo', duration: 800 });
+                    lastUndoToastTime.current = now;
+                }
+            }
+        } else if (tool.id === 'redo') {
+            if (canRedo) {
+                redo();
+                // Show toast only once per second even with rapid clicks
+                const now = Date.now();
+                if (now - lastRedoToastTime.current > TOAST_DEBOUNCE_MS) {
+                    addToast({ type: 'info', title: 'Redo', duration: 800 });
+                    lastRedoToastTime.current = now;
+                }
+            }
         } else {
             setActiveTool(tool.id as ToolId);
         }
@@ -251,10 +302,10 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
             const baseName = editableFileName.replace(/\.pdf$/i, '');
             const newName = `${baseName}.pdf`; // Keep original name if possible
             downloadPDF(bytes, newName);
-            addToast({ 
-                type: 'success', 
-                title: 'Content Saved', 
-                duration: 1000 
+            addToast({
+                type: 'success',
+                title: 'Content Saved',
+                duration: 1000
             });
         } catch { addToast({ type: 'error', title: 'Failed', message: 'Could not save.' }); }
     };
@@ -307,10 +358,20 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                     readOnly={!activeDocument}
                 />
                 <div className="ribbon-actions">
-                    <button className="ribbon-icon-btn undo" disabled={!activeDocument} title="Undo (Ctrl+Z)">
+                    <button
+                        className="ribbon-icon-btn undo"
+                        disabled={!activeDocument || !canUndo}
+                        title="Undo (Ctrl+Z)"
+                        onClick={() => undo()}
+                    >
                         <Undo2 size={14} />
                     </button>
-                    <button className="ribbon-icon-btn redo" disabled={!activeDocument} title="Redo (Ctrl+Y)">
+                    <button
+                        className="ribbon-icon-btn redo"
+                        disabled={!activeDocument || !canRedo}
+                        title="Redo (Ctrl+Y)"
+                        onClick={() => redo()}
+                    >
                         <Redo2 size={14} />
                     </button>
                     <div className="ribbon-divider"></div>
@@ -334,9 +395,9 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
                         </button>
                     )}
                     <div className="ribbon-divider"></div>
-                    <button 
-                        className="ribbon-icon-btn products-toggle" 
-                        onClick={() => setIsProductNavOpen(true)} 
+                    <button
+                        className="ribbon-icon-btn products-toggle"
+                        onClick={() => setIsProductNavOpen(true)}
                         title="Famral Products"
                     >
                         <LayoutGrid size={14} />

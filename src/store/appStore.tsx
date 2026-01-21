@@ -4,10 +4,29 @@
  */
 
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
-import { AppState, AppAction, PDFDocument, ToolId, Annotation, PreviewState } from '../types';
+import { AppState, AppAction, PDFDocument, ToolId, Annotation, PreviewState, PDFPage } from '../types';
+
+// History state for undo/redo - stores page snapshots
+interface HistoryEntry {
+    pages: PDFPage[];
+    timestamp: number;
+}
+
+interface HistoryState {
+    past: HistoryEntry[];
+    future: HistoryEntry[];
+}
+
+// Extended state to include history
+interface AppStateWithHistory extends AppState {
+    history: HistoryState;
+}
+
+// Maximum history entries to keep (prevents memory issues)
+const MAX_HISTORY_SIZE = 50;
 
 // Initial state
-const initialState: AppState = {
+const initialState: AppStateWithHistory = {
     theme: (localStorage.getItem('theme') as 'light' | 'dark') || 'light',
     sidebarCollapsed: false,
     activeTool: null,
@@ -31,10 +50,45 @@ const initialState: AppState = {
         shapeFillColor: 'transparent',
         shapeStrokeWidth: 2,
     },
+    history: {
+        past: [],
+        future: [],
+    },
 };
 
+// Helper function to create a deep copy of pages for history
+function clonePages(pages: PDFPage[]): PDFPage[] {
+    return pages.map(page => ({
+        ...page,
+        annotations: page.annotations.map(ann => ({ ...ann })),
+    }));
+}
+
+// Helper to push current state to history
+function pushToHistory(state: AppStateWithHistory): HistoryState {
+    if (!state.activeDocument) return state.history;
+
+    const newPast = [
+        ...state.history.past,
+        {
+            pages: clonePages(state.activeDocument.pages),
+            timestamp: Date.now(),
+        },
+    ];
+
+    // Limit history size
+    if (newPast.length > MAX_HISTORY_SIZE) {
+        newPast.shift();
+    }
+
+    return {
+        past: newPast,
+        future: [], // Clear future when new action is performed
+    };
+}
+
 // Reducer
-function appReducer(state: AppState, action: AppAction): AppState {
+function appReducer(state: AppStateWithHistory, action: AppAction): AppStateWithHistory {
     switch (action.type) {
         case 'SET_THEME':
             localStorage.setItem('theme', action.payload);
@@ -55,6 +109,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 selectedPages: [],
                 isLoading: false,
                 saveStatus: 'saved',
+                history: { past: [], future: [] }, // Reset history for new document
             };
 
         case 'CLOSE_DOCUMENT':
@@ -64,6 +119,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: remainingDocs,
                 activeDocument: remainingDocs.length > 0 ? remainingDocs[remainingDocs.length - 1] : null,
                 selectedPages: [],
+                history: { past: [], future: [] }, // Reset history
             };
 
         case 'UPDATE_DOCUMENT':
@@ -103,8 +159,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 previewState: action.payload,
             };
 
-        case 'ADD_ANNOTATION':
+        case 'ADD_ANNOTATION': {
             if (!state.activeDocument) return state;
+            const newHistory = pushToHistory(state); // Save current state before change
             const pageIndex = action.payload.pageNumber - 1;
             const updatedPages = [...state.activeDocument.pages];
             updatedPages[pageIndex] = {
@@ -119,10 +176,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
                     d.id === newActiveDoc.id ? newActiveDoc : d
                 ),
                 saveStatus: 'unsaved',
+                history: newHistory,
             };
+        }
 
-        case 'UPDATE_ANNOTATION':
+        case 'UPDATE_ANNOTATION': {
             if (!state.activeDocument) return state;
+            const newHistory = pushToHistory(state); // Save current state before change
             const updatedActiveDocUpdate = {
                 ...state.activeDocument,
                 pages: state.activeDocument.pages.map(page => ({
@@ -140,10 +200,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: state.documents.map(d =>
                     d.id === updatedActiveDocUpdate.id ? updatedActiveDocUpdate : d
                 ),
+                saveStatus: 'unsaved',
+                history: newHistory,
             };
+        }
 
-        case 'DELETE_ANNOTATION':
+        case 'DELETE_ANNOTATION': {
             if (!state.activeDocument) return state;
+            const newHistory = pushToHistory(state); // Save current state before change
             const updatedActiveDocDelete = {
                 ...state.activeDocument,
                 pages: state.activeDocument.pages.map(page => ({
@@ -157,7 +221,72 @@ function appReducer(state: AppState, action: AppAction): AppState {
                 documents: state.documents.map(d =>
                     d.id === updatedActiveDocDelete.id ? updatedActiveDocDelete : d
                 ),
+                saveStatus: 'unsaved',
+                history: newHistory,
             };
+        }
+
+        case 'UNDO': {
+            if (!state.activeDocument || state.history.past.length === 0) return state;
+
+            const previousEntry = state.history.past[state.history.past.length - 1];
+            const newPast = state.history.past.slice(0, -1);
+
+            // Save current state to future
+            const currentEntry: HistoryEntry = {
+                pages: clonePages(state.activeDocument.pages),
+                timestamp: Date.now(),
+            };
+
+            const restoredDoc = {
+                ...state.activeDocument,
+                pages: clonePages(previousEntry.pages),
+            };
+
+            return {
+                ...state,
+                activeDocument: restoredDoc,
+                documents: state.documents.map(d =>
+                    d.id === restoredDoc.id ? restoredDoc : d
+                ),
+                saveStatus: 'unsaved',
+                history: {
+                    past: newPast,
+                    future: [currentEntry, ...state.history.future],
+                },
+            };
+        }
+
+        case 'REDO': {
+            if (!state.activeDocument || state.history.future.length === 0) return state;
+
+            const nextEntry = state.history.future[0];
+            const newFuture = state.history.future.slice(1);
+
+            // Save current state to past
+            const currentEntry: HistoryEntry = {
+                pages: clonePages(state.activeDocument.pages),
+                timestamp: Date.now(),
+            };
+
+            const restoredDoc = {
+                ...state.activeDocument,
+                pages: clonePages(nextEntry.pages),
+            };
+
+            return {
+                ...state,
+                activeDocument: restoredDoc,
+                documents: state.documents.map(d =>
+                    d.id === restoredDoc.id ? restoredDoc : d
+                ),
+                saveStatus: 'unsaved',
+                history: {
+                    past: [...state.history.past, currentEntry],
+                    future: newFuture,
+                },
+            };
+        }
 
         case 'LOGIN':
             return { ...state, user: action.payload };
@@ -178,7 +307,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
 // Context
 interface AppContextType {
-    state: AppState;
+    state: AppStateWithHistory;
     dispatch: React.Dispatch<AppAction>;
     // Helper actions
     setTheme: (theme: 'light' | 'dark') => void;
@@ -205,6 +334,11 @@ interface AppContextType {
     logout: () => void;
     setToolOptions: (options: Partial<import('../types').ToolOptions>) => void;
     setSaveStatus: (status: 'saved' | 'saving' | 'unsaved') => void;
+    // Undo/Redo
+    undo: () => void;
+    redo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -321,6 +455,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_SAVE_STATUS', payload: status });
     }, []);
 
+    // Undo/Redo functions
+    const undo = useCallback(() => {
+        dispatch({ type: 'UNDO' });
+    }, []);
+
+    const redo = useCallback(() => {
+        dispatch({ type: 'REDO' });
+    }, []);
+
+    // Computed values for undo/redo availability
+    const canUndo = state.history.past.length > 0;
+    const canRedo = state.history.future.length > 0;
+
     const value: AppContextType = {
         state,
         dispatch,
@@ -348,6 +495,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         logout,
         setToolOptions,
         setSaveStatus,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

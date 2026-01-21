@@ -124,6 +124,7 @@ export interface StampAnnotation extends BaseAnnotation {
     type: 'stamp';
     stampType: 'approved' | 'rejected' | 'draft' | 'confidential' | 'custom';
     customText?: string;
+    fontSize?: number;
 }
 
 export interface NoteAnnotation extends BaseAnnotation {
@@ -132,6 +133,8 @@ export interface NoteAnnotation extends BaseAnnotation {
     isOpen: boolean;
     size?: 'small' | 'medium' | 'large';
 }
+
+// ... existing code ...
 
 
 export interface ImageAnnotation extends BaseAnnotation {
@@ -233,22 +236,29 @@ export type ToolId =
 
 export interface ToolOptions {
     // Draw Settings
-    drawColor: string;
-    drawWidth: number;
+    drawColor?: string;
+    drawWidth?: number;
 
     // Stamp Settings
     activeStampId?: string; // For adding new stamps
-    selectedStamp?: { text: string; color: string; icon?: any; type: 'predefined' | 'custom'; size?: string };
+    selectedStamp?: {
+        text: string;
+        color: string;
+        icon?: any;
+        type: 'predefined' | 'custom';
+        size?: string;
+        fontSize?: number; // Added for strict size mapping
+    };
 
     // Note Settings
-    noteColor: string;
+    noteColor?: string;
     noteSize?: 'small' | 'medium' | 'large';
 
     // Shape Settings
-    shapeType: 'rectangle' | 'circle' | 'arrow' | 'line';
-    shapeStrokeColor: string;
-    shapeFillColor: string;
-    shapeStrokeWidth: number;
+    shapeType?: 'rectangle' | 'circle' | 'arrow' | 'line';
+    shapeStrokeColor?: string;
+    shapeFillColor?: string;
+    shapeStrokeWidth?: number;
     shapeOpacity?: number;
     // Text Formatting Settings
     fontSize?: number;

@@ -52,6 +52,7 @@ export function PDFViewer() {
 
     const [isSelectingRegion, setIsSelectingRegion] = useState(false);
     const [currentRegion, setCurrentRegion] = useState<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
 
     const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -84,9 +85,11 @@ export function PDFViewer() {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
-                // Don't delete if user is typing in an input
-                if (document.activeElement?.tagName === 'INPUT' ||
-                    document.activeElement?.tagName === 'TEXTAREA') {
+                // Don't delete if user is typing in an input or editing a text/note
+                const activeElement = document.activeElement;
+                if (activeElement?.tagName === 'INPUT' ||
+                    activeElement?.tagName === 'TEXTAREA' ||
+                    editingNoteId) { // Don't interfere with inline text editing
                     return;
                 }
                 e.preventDefault();
@@ -97,7 +100,7 @@ export function PDFViewer() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedAnnotationId, deleteAnnotation]);
+    }, [selectedAnnotationId, deleteAnnotation, editingNoteId]);
 
     // Sync ref
     useEffect(() => { renderedPagesRef.current = renderedPages; }, [renderedPages]);
@@ -259,11 +262,11 @@ export function PDFViewer() {
                 type: 'freehand',
                 pageNumber: pageNum,
                 x: 0, y: 0, width: 100, height: 100, rotation: 0, opacity: 1,
-                color: toolOptions.drawColor,
+                color: toolOptions.drawColor || '#000000',
                 createdAt: new Date(), updatedAt: new Date(),
                 path: '',
                 points: [...currentStroke],
-                strokeWidth: toolOptions.drawWidth
+                strokeWidth: toolOptions.drawWidth || 2
             };
             addAnnotation(newFreehand);
         }
@@ -324,15 +327,26 @@ export function PDFViewer() {
 
         if (activeTool === 'stamp' && toolOptions.selectedStamp) {
             const stamp = toolOptions.selectedStamp;
+            const fs = stamp.fontSize || 18;
+            const scale = fs / 10; // Convert px to viewBox units
+            // Estimate width: characters * charWidth + padding
+            const charWidth = scale * 0.6;
+            const textContent = stamp.text || 'STAMP';
+            const width = (textContent.length * charWidth) + (scale * 3);
+            const height = scale * 2.5;
+
             const newStamp: StampAnnotation = {
                 id: `stamp-${Date.now()}`,
                 type: 'stamp',
                 stampType: stamp.type as any,
                 customText: stamp.text,
                 pageNumber: pageNum,
-                x: point.x, y: point.y, width: 20, height: 8,
+                x: point.x, y: point.y,
+                width: width,
+                height: height,
                 rotation: 0, opacity: 1, color: stamp.color,
-                createdAt: new Date(), updatedAt: new Date()
+                createdAt: new Date(), updatedAt: new Date(),
+                fontSize: fs
             };
             addAnnotation(newStamp);
         }
@@ -370,33 +384,34 @@ export function PDFViewer() {
             setTextModalOpen(true);
         }
         else if (activeTool === 'add-text') {
-            // Open modal for text input
-            setTextModalConfig({
-                title: 'Add Text',
-                placeholder: 'Enter your text...',
-                defaultValue: '',
-                showFontSizeOption: true,
-                initialFontSize: toolOptions.fontSize || 12,
-                onConfirm: (userText: string, fontSize?: number) => {
-                    const newText: TextAnnotation = {
-                        id: `text-${Date.now()}`,
-                        type: 'text',
-                        content: userText,
-                        pageNumber: pageNum,
-                        x: point.x, y: point.y, width: 20, height: 5,
-                        rotation: 0, opacity: 1, color: toolOptions.drawColor || '#000000',
-                        createdAt: new Date(), updatedAt: new Date(),
-                        fontSize: fontSize || toolOptions.fontSize || 12,
-                        fontFamily: toolOptions.fontFamily || 'Arial',
-                        fontWeight: toolOptions.isBold ? 'bold' : 'normal',
-                        fontStyle: toolOptions.isItalic ? 'italic' : 'normal',
-                        textAlign: toolOptions.textAlign || 'left'
-                    };
-                    addAnnotation(newText);
-                    setTextModalOpen(false);
-                }
-            });
-            setTextModalOpen(true);
+            // Create text box immediately without modal
+            const fs = toolOptions.fontSize || 16;
+            const scaledFontSize = fs / 10;
+            const placeholderText = 'Click to edit';
+            const initialWidth = Math.max(15, placeholderText.length * scaledFontSize * 0.5);
+            const initialHeight = Math.max(5, scaledFontSize * 2.5);
+
+            const newText: TextAnnotation = {
+                id: `text-${Date.now()}`,
+                type: 'text',
+                content: placeholderText,
+                pageNumber: pageNum,
+                x: point.x, y: point.y,
+                width: initialWidth,
+                height: initialHeight,
+                rotation: 0, opacity: 1, color: toolOptions.drawColor || '#000000',
+                createdAt: new Date(), updatedAt: new Date(),
+                fontSize: fs,
+                fontFamily: toolOptions.fontFamily || 'Arial',
+                fontWeight: toolOptions.isBold ? 'bold' : 'normal',
+                fontStyle: toolOptions.isItalic ? 'italic' : 'normal',
+                textAlign: toolOptions.textAlign || 'left'
+            };
+            addAnnotation(newText);
+            // Select and immediately enable editing
+            setSelectedAnnotationId(newText.id);
+            // Use a small delay to ensure the element is rendered before focusing
+            setTimeout(() => setEditingNoteId(newText.id), 50);
         }
         else if (activeTool === 'add-image' && toolOptions.pendingImage) {
             const img = toolOptions.pendingImage;
@@ -561,12 +576,12 @@ export function PDFViewer() {
                     top: `${ann.y}%`,
                     width: `${ann.width}%`,
                     height: `${ann.height}%`,
-                    pointerEvents: 'auto', // Capture mouse for moving
+                    pointerEvents: 'none', // Allow clicking through to the underlying element
                     cursor: isDraggingAnnotation ? 'grabbing' : 'grab',
                     border: '1px dashed #3b82f6',
-                    boxSizing: 'content-box' // Ensure border doesn't shrink content
+                    boxSizing: 'content-box', // Ensure border doesn't shrink content
+                    zIndex: 10 // Ensure it sits above the SVG
                 }}
-                onMouseDown={(e) => handleAnnotationDragStart(e, ann)}
             >
                 {/* Delete Button - Fixed Size HTML */}
                 <div
@@ -590,7 +605,8 @@ export function PDFViewer() {
                         cursor: 'pointer',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                         fontSize: '14px',
-                        zIndex: 10
+                        zIndex: 20,
+                        pointerEvents: 'auto' // Re-enable pointer events for the button
                     }}
                 >
                     ×
@@ -809,24 +825,45 @@ export function PDFViewer() {
 
                 case 'stamp':
                     const stamp = ann as StampAnnotation;
-                    // Use text element for proper SVG scaling
+                    // Strict size mapping: convert stored pixel fontSize to viewBox units
+                    const stampFs = (stamp.fontSize || 18) / 10;
+                    const stampScale = stampFs;
+
+                    // Box dimensions relative to font size
+                    const boxPaddingX = stampScale * 1.5;
+                    const boxPaddingY = stampScale * 0.5;
+                    const textLen = (stamp.customText || 'STAMP').length;
+                    // Re-calculate width for render if needed, or use ann.width if it was set correctly
+                    // Here we draw centered on ann.x, ann.y or top-left? 
+                    // transform translate uses ann.x, ann.y. 
+                    // Let's center the text block around current point? Or standard top-left.
+                    // Existing code used centered text on (0,0) relative to transform.
+                    // We'll keep the visual consistent: centered text with box.
+
+                    const boxWidth = (textLen * stampScale * 0.6) + (boxPaddingX * 2);
+                    const boxHeight = stampScale + (boxPaddingY * 2);
+
                     return (
                         <g key={ann.id} transform={`translate(${ann.x}, ${ann.y})`}>
                             <rect
-                                x="-8" y="-2" width="16" height="4"
+                                x={-boxWidth / 2}
+                                y={-boxHeight / 2}
+                                width={boxWidth}
+                                height={boxHeight}
                                 fill="rgba(255,255,255,0.9)"
                                 stroke={ann.color}
-                                strokeWidth="0.15"
-                                rx="0.3"
+                                strokeWidth={stampScale * 0.1}
+                                rx={stampScale * 0.3}
                                 transform="rotate(-12)"
                             />
                             <text
-                                x="0" y="0.8"
+                                x="0"
+                                y={stampScale * 0.35} // Visual centering adjustment
                                 fill={ann.color}
-                                fontSize="2"
+                                fontSize={stampScale}
                                 fontWeight="bold"
                                 textAnchor="middle"
-                                letterSpacing="0.1"
+                                letterSpacing={stampScale * 0.2}
                                 transform="rotate(-12)"
                                 style={{ textTransform: 'uppercase', pointerEvents: 'auto' }}
                             >
@@ -847,45 +884,30 @@ export function PDFViewer() {
                     // PROPORTIONAL font size scaling based on actual note dimensions
                     // This ensures text scales when notes are resized via drag handles
                     const baseFontMultiplier = 0.08;
-                    const noteFontSize = Math.max(0.7, Math.min(2.5, finalWidth * baseFontMultiplier));
-                    const noteLineHeight = noteFontSize * 1.3;
+                    const noteFontSize = Math.max(0.6, Math.min(2.2, finalWidth * baseFontMultiplier));
 
-                    // Dynamic padding based on note size
-                    const notePadding = Math.max(0.4, finalWidth * 0.04);
+
+                    // Dynamic padding - account for folded corner
+                    const topPadding = Math.max(0.5, finalWidth * 0.05);
+                    const sidePadding = Math.max(0.5, finalWidth * 0.05);
+                    const bottomPadding = Math.max(0.8, finalWidth * 0.06);
 
                     const handleNoteClick = (e: React.MouseEvent) => {
                         handleAnnotationSelect(e, ann.id);
                     };
 
+                    const isEditing = editingNoteId === ann.id;
+
                     const handleNoteDoubleClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
-                        setTextModalConfig({
-                            title: 'Edit Note',
-                            placeholder: 'Edit note text...',
-                            defaultValue: noteContent,
-                            onConfirm: (newContent: string) => {
-                                updateAnnotation(ann.id, { content: newContent } as any);
-                                setTextModalOpen(false);
-                                setTextModalConfig(null);
-                            }
-                        });
-                        setTextModalOpen(true);
+                        setEditingNoteId(ann.id);
                     };
 
-                    // Dynamic text layout based on available width
-                    const availableTextWidth = finalWidth - (notePadding * 2);
-                    const avgCharWidth = noteFontSize * 0.6;
-                    const charsPerLine = Math.max(5, Math.floor(availableTextWidth / avgCharWidth));
-
-                    // Calculate max lines that fit
-                    const maxLines = Math.max(1, Math.floor((finalHeight - notePadding * 2 - 1) / noteLineHeight));
-                    const maxChars = charsPerLine * maxLines;
-                    const displayText = noteContent.length > maxChars
-                        ? noteContent.substring(0, maxChars - 3) + '...'
-                        : noteContent;
-
-                    // Wrap text dynamically based on available width
-                    const lines = displayText ? displayText.match(new RegExp(`.{1,${charsPerLine}}`, 'g')) || [] : [];
+                    // Dynamic text layout - foreignObject for automatic reflow
+                    const textPaddingX = sidePadding;
+                    const textPaddingY = topPadding;
+                    const noteTextWidth = finalWidth - (sidePadding * 2);
+                    const noteTextHeight = finalHeight - topPadding - bottomPadding;
 
                     return (
                         <g
@@ -911,88 +933,181 @@ export function PDFViewer() {
                                 strokeWidth="0.1"
                             />
 
-                            {/* Text Content with Proportional Font Size */}
-                            {lines.slice(0, maxLines).map((line, i) => (
-                                <text
-                                    key={i}
-                                    x={ann.x + notePadding}
-                                    y={ann.y + notePadding + noteFontSize + (i * noteLineHeight)}
-                                    fontSize={noteFontSize}
-                                    fontFamily="Arial, sans-serif"
-                                    fill="#374151"
-                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                    {line}
-                                </text>
-                            ))}
+                            {/* Single Text Container with Automatic Reflow & Resolution Scaling */}
+                            {/* We use a scaling technique to avoid browser minimum font-size issues with small SVG units */}
+                            <foreignObject
+                                x={ann.x + textPaddingX}
+                                y={ann.y + textPaddingY}
+                                width={noteTextWidth}
+                                height={noteTextHeight}
+                                style={{ pointerEvents: isEditing ? 'auto' : 'none', overflow: 'visible' }}
+                            >
+                                <textarea
+                                    value={noteContent}
+                                    onChange={(e) => updateAnnotation(ann.id, { content: e.target.value } as any)}
+                                    readOnly={!isEditing}
+                                    onBlur={() => setEditingNoteId(null)}
+                                    onMouseDown={(e) => isEditing && e.stopPropagation()} // Stop drag when editing
+                                    style={{
+                                        width: '1000%', // Compensate for scale(0.1)
+                                        height: '1000%',
+                                        transform: 'scale(0.1)',
+                                        transformOrigin: 'top left',
+                                        fontSize: `${noteFontSize * 10}px`,
+                                        fontFamily: 'Arial, sans-serif',
+                                        color: '#374151',
+                                        lineHeight: '1.4',
+                                        overflow: 'hidden',
+                                        padding: 0,
+                                        margin: 0,
+                                        border: 'none',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        resize: 'none',
+                                        userSelect: isEditing ? 'text' : 'none',
+                                        cursor: isEditing ? 'text' : 'pointer'
+                                    }}
+                                />
+                            </foreignObject>
                         </g>
                     );
 
                 case 'text':
                     const textAnn = ann as TextAnnotation;
-                    // Scale font size - fontSize 12 should be about 1.2 in viewBox units
-                    const scaledSize = (textAnn.fontSize || 12) / 10;
                     const textContent = textAnn.content || 'Text';
+
+                    // Use stored dimensions if available, otherwise calculate defaults
+                    const baseTextFontSize = (textAnn.fontSize || 16) / 10; // Scale to viewBox units
+                    const textFinalWidth = ann.width || Math.max(12, textContent.length * baseTextFontSize * 0.55);
+                    const textFinalHeight = ann.height || Math.max(4, baseTextFontSize * 2);
+
+                    // PROPORTIONAL font size scaling based on actual text box dimensions
+                    // This ensures text scales when resized via drag handles
+                    const textBaseFontMultiplier = 0.12;
+                    const textScaledFontSize = Math.max(0.8, Math.min(3, textFinalWidth * textBaseFontMultiplier));
 
                     const handleTextClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
-                        // Single click selects, double click edits
-                        handleAnnotationSelect(e, ann.id);
+                        // If already selected, enable editing; otherwise just select
+                        if (selectedAnnotationId === ann.id && !isTextEditing) {
+                            setEditingNoteId(ann.id);
+                        } else {
+                            handleAnnotationSelect(e, ann.id);
+                        }
                     };
+
+                    const isTextEditing = editingNoteId === ann.id;
 
                     const handleTextDoubleClick = (e: React.MouseEvent) => {
                         e.stopPropagation();
-                        setTextModalConfig({
-                            title: 'Edit Text',
-                            placeholder: 'Edit your text...',
-                            defaultValue: textContent,
-                            onConfirm: (newText: string) => {
-                                updateAnnotation(ann.id, { content: newText } as any);
-                                setTextModalOpen(false);
-                                setTextModalConfig(null);
-                            }
-                        });
-                        setTextModalOpen(true);
+                        setEditingNoteId(ann.id);
                     };
 
-                    const isSelected = selectedAnnotationId === ann.id;
-                    const textWidth = textContent.length * scaledSize * 0.6;
-                    const textHeight = scaledSize * 1.5;
+                    // Padding for text inside the box
+                    const textPadX = textFinalWidth * 0.05;
+                    const textPadY = textFinalHeight * 0.1;
+                    const textInnerWidth = textFinalWidth - (textPadX * 2);
+                    const textInnerHeight = textFinalHeight - (textPadY * 2);
 
                     return (
                         <g
                             key={ann.id}
-                            style={{ cursor: isDraggingAnnotation ? 'grabbing' : 'grab' }}
+                            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
                             onMouseDown={(e) => handleAnnotationDragStart(e as any, ann)}
                             onClick={handleTextClick}
                             onDoubleClick={handleTextDoubleClick}
                         >
-                            {/* Selection border */}
-                            {isSelected && (
-                                <rect
-                                    x={ann.x - 0.5}
-                                    y={ann.y - textHeight}
-                                    width={textWidth + 1}
-                                    height={textHeight + 0.5}
-                                    fill="none"
-                                    stroke="#3b82f6"
-                                    strokeWidth="0.15"
-                                    strokeDasharray="0.5,0.3"
-                                    style={{ pointerEvents: 'none' }}
-                                />
-                            )}
-                            <text
+                            {/* Text Background - transparent, only shows border when selected */}
+                            <rect
                                 x={ann.x}
                                 y={ann.y}
-                                fill={ann.color || '#000000'}
-                                fontSize={scaledSize}
-                                fontFamily={textAnn.fontFamily || 'Arial'}
-                                fontWeight={textAnn.fontWeight || 'normal'}
-                                fontStyle={textAnn.fontStyle || 'normal'}
-                                style={{ pointerEvents: 'auto' }}
+                                width={textFinalWidth}
+                                height={textFinalHeight}
+                                fill="transparent"
+                                stroke={selectedAnnotationId === ann.id ? '#3b82f6' : 'transparent'}
+                                strokeWidth={selectedAnnotationId === ann.id ? '0.15' : '0'}
+                                rx="0.3"
+                                ry="0.3"
+                            />
+
+                            {/* Editable Text using foreignObject */}
+                            <foreignObject
+                                x={ann.x + textPadX}
+                                y={ann.y + textPadY}
+                                width={textInnerWidth}
+                                height={textInnerHeight}
+                                style={{ pointerEvents: isTextEditing ? 'auto' : 'none', overflow: 'visible' }}
                             >
-                                {textContent}
-                            </text>
+                                <textarea
+                                    value={textContent}
+                                    onChange={(e) => {
+                                        const newText = e.target.value;
+                                        updateAnnotation(ann.id, { content: newText } as any);
+
+                                        // Auto-expand height based on line count
+                                        const lines = newText.split('\n').length;
+                                        const lineHeight = textScaledFontSize * 1.3; // Match lineHeight from styles
+                                        const padding = textFinalHeight * 0.2; // Top + bottom padding
+                                        const newHeight = Math.max(textFinalHeight, (lines * lineHeight) + padding);
+
+                                        // Update annotation height if it has grown
+                                        if (newHeight > ann.height!) {
+                                            updateAnnotation(ann.id, { height: newHeight } as any);
+                                        }
+                                    }}
+                                    onKeyDown={(e) => {
+                                        // Delete entire text box if it's empty or just placeholder
+                                        const isEmpty = !textContent.trim() || textContent.trim() === 'Click to edit';
+                                        if ((e.key === 'Delete' || e.key === 'Backspace') && isEmpty) {
+                                            e.preventDefault();
+                                            e.stopPropagation(); // Prevent global handler from also firing
+                                            deleteAnnotation(ann.id);
+                                            setSelectedAnnotationId(null);
+                                            setEditingNoteId(null);
+                                        }
+                                    }}
+                                    readOnly={!isTextEditing}
+                                    onBlur={() => {
+                                        // If text is empty or just placeholder, delete the entire box
+                                        const isEmpty = !textContent.trim() || textContent.trim() === 'Click to edit';
+                                        if (isEmpty) {
+                                            // Complete destruction - no recreation
+                                            deleteAnnotation(ann.id);
+                                            setSelectedAnnotationId(null);
+                                        }
+                                        setEditingNoteId(null);
+                                    }}
+                                    onFocus={(e) => {
+                                        // Select all text on focus for easy replacement
+                                        e.target.select();
+                                    }}
+                                    onMouseDown={(e) => isTextEditing && e.stopPropagation()}
+                                    autoFocus={isTextEditing}
+                                    style={{
+                                        width: '1000%',
+                                        height: '1000%',
+                                        transform: 'scale(0.1)',
+                                        transformOrigin: 'top left',
+                                        fontSize: `${textScaledFontSize * 10}px`,
+                                        fontFamily: textAnn.fontFamily || 'Arial, sans-serif',
+                                        fontWeight: textAnn.fontWeight || 'normal',
+                                        fontStyle: textAnn.fontStyle || 'normal',
+                                        color: ann.color || '#000000',
+                                        lineHeight: '1.3',
+                                        overflow: 'visible', // Show all content, no scrollbars
+                                        padding: 0,
+                                        margin: 0,
+                                        border: 'none',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        resize: 'none',
+                                        userSelect: isTextEditing ? 'text' : 'none',
+                                        cursor: isTextEditing ? 'text' : 'pointer',
+                                        whiteSpace: 'pre-wrap',
+                                        wordWrap: 'break-word'
+                                    }}
+                                />
+                            </foreignObject>
                         </g>
                     );
 
@@ -1248,10 +1363,6 @@ export function PDFViewer() {
                                         <div className="page-placeholder loading"></div>
                                     )}
 
-                                    {/* Selection Overlays (HTML Layer) */}
-                                    {page.annotations.map(ann => renderSelectionOverlay(ann))}
-
-                                    {/* Annotations Layer (SVG) */}
                                     <svg
                                         className="annotations-overlay"
                                         viewBox="0 0 100 100"
@@ -1262,7 +1373,8 @@ export function PDFViewer() {
                                             left: 0,
                                             width: '100%',
                                             height: '100%',
-                                            pointerEvents: 'none'
+                                            pointerEvents: 'none',
+                                            zIndex: 5
                                         }}
                                     >
                                         {/* SVG Filters */}
@@ -1278,8 +1390,8 @@ export function PDFViewer() {
                                         {isDrawing && currentStroke.length > 1 && (
                                             <path
                                                 d={currentStroke.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
-                                                stroke={activeTool === 'signature' ? '#000000' : toolOptions.drawColor}
-                                                strokeWidth={activeTool === 'signature' ? 2 : toolOptions.drawWidth}
+                                                stroke={activeTool === 'signature' ? '#000000' : (toolOptions.drawColor || '#000000')}
+                                                strokeWidth={activeTool === 'signature' ? 2 : (toolOptions.drawWidth || 2)}
                                                 fill="none"
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
@@ -1310,6 +1422,9 @@ export function PDFViewer() {
                                             />
                                         )}
                                     </svg>
+
+                                    {/* Selection Overlays (HTML Layer) - Rendered AFTER SVG to be on top */}
+                                    {page.annotations.map(ann => renderSelectionOverlay(ann))}
                                 </div>
                             </div>
                         ))}
