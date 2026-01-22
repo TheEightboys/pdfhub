@@ -5,14 +5,18 @@
 
 import { useState, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { addWatermark, downloadPDF } from '../../utils/pdfHelpers';
+import { addWatermark, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import { WatermarkOptions } from '../../types';
 import {
-    Download,
     Loader2,
     Droplets,
     Type,
     Image,
+    Download,
+    RefreshCw,
+    FileText,
+    Check,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -20,7 +24,7 @@ type WatermarkType = 'text' | 'image';
 type Position = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'diagonal';
 
 export function WatermarkTool() {
-    const { state, setLoading, setPreviewState } = useApp();
+    const { state, setLoading, setPreviewState, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
@@ -35,9 +39,14 @@ export function WatermarkTool() {
     const [customPages, setCustomPages] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
+
     // Update preview whenever settings change
     useEffect(() => {
-        if (!activeDocument) return;
+        if (!activeDocument || isPreviewReady) return;
 
         let pages: number[] | undefined;
         if (applyTo === 'custom' && customPages.trim()) {
@@ -61,9 +70,8 @@ export function WatermarkTool() {
             timestamp: Date.now()
         });
 
-        // Cleanup preview on unmount
         return () => setPreviewState(null);
-    }, [activeDocument, watermarkType, text, fontSize, color, opacity, rotation, position, applyTo, customPages, setPreviewState]);
+    }, [activeDocument, watermarkType, text, fontSize, color, opacity, rotation, position, applyTo, customPages, setPreviewState, isPreviewReady]);
 
     const handleApplyWatermark = async () => {
         if (!activeDocument) return;
@@ -81,7 +89,6 @@ export function WatermarkTool() {
         setLoading(true, 'Adding watermark...');
 
         try {
-            // Parse custom pages
             let pages: number[] | undefined;
             if (applyTo === 'custom' && customPages.trim()) {
                 pages = customPages.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
@@ -99,14 +106,24 @@ export function WatermarkTool() {
             };
 
             const watermarkedBytes = await addWatermark(activeDocument.arrayBuffer.slice(0), options);
-
             const fileName = activeDocument.name.replace('.pdf', '_watermarked.pdf');
-            downloadPDF(watermarkedBytes, fileName);
+
+            setResultData(watermarkedBytes);
+            setResultFileName(fileName);
+
+            // Load watermarked PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(watermarkedBytes).buffer], { type: 'application/pdf' });
+            const watermarkedFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(watermarkedFile);
+            loadDocument(doc);
+
+            setPreviewState(null); // Clear live preview overlay
+            setIsPreviewReady(true);
 
             addToast({
                 type: 'success',
-                title: 'Watermark added!',
-                message: `Saved to ${fileName}`,
+                title: 'Watermark applied!',
+                message: 'Preview is now showing in the viewer.',
             });
         } catch (error) {
             console.error('Watermark failed:', error);
@@ -121,6 +138,31 @@ export function WatermarkTool() {
         }
     };
 
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setIsPreviewReady(false);
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     if (!activeDocument) {
         return (
             <div className="tool-panel">
@@ -133,6 +175,68 @@ export function WatermarkTool() {
         );
     }
 
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData) {
+        return (
+            <div className="tool-panel">
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Watermarked PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Watermark Applied</h2>
+                    <p className="tool-description">
+                        Review the watermarked PDF in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The watermarked PDF is now showing in the viewer. Watermark: "{text}"</p>
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(resultData.length)}</span>
+                        </div>
+                    </div>
+
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{activeDocument.pageCount}</span>
+                            <span className="stat-label">Total Pages</span>
+                        </div>
+                        <div className="preview-stat">
+                            <span className="stat-value">{text.substring(0, 8)}{text.length > 8 ? '...' : ''}</span>
+                            <span className="stat-label">Watermark</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Add Another
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -143,7 +247,6 @@ export function WatermarkTool() {
             </div>
 
             <div className="tool-content">
-                {/* Watermark Type */}
                 <div className="tool-section">
                     <h4 className="section-title">Watermark Type</h4>
                     <div className="mode-tabs">
@@ -168,7 +271,6 @@ export function WatermarkTool() {
 
                 {watermarkType === 'text' && (
                     <>
-                        {/* Text Input */}
                         <div className="tool-section">
                             <h4 className="section-title">Watermark Text</h4>
                             <input
@@ -180,7 +282,6 @@ export function WatermarkTool() {
                             />
                         </div>
 
-                        {/* Font Size */}
                         <div className="tool-section">
                             <h4 className="section-title">Font Size: {fontSize}px</h4>
                             <input
@@ -193,7 +294,6 @@ export function WatermarkTool() {
                             />
                         </div>
 
-                        {/* Color */}
                         <div className="tool-section">
                             <h4 className="section-title">Color</h4>
                             <div className="color-picker-row">
@@ -209,7 +309,6 @@ export function WatermarkTool() {
                     </>
                 )}
 
-                {/* Opacity */}
                 <div className="tool-section">
                     <h4 className="section-title">Opacity: {opacity}%</h4>
                     <input
@@ -222,7 +321,6 @@ export function WatermarkTool() {
                     />
                 </div>
 
-                {/* Position */}
                 <div className="tool-section">
                     <h4 className="section-title">Position</h4>
                     <div className="position-grid">
@@ -260,7 +358,6 @@ export function WatermarkTool() {
                     </div>
                 )}
 
-                {/* Apply To */}
                 <div className="tool-section">
                     <h4 className="section-title">Apply To</h4>
                     <div className="mode-tabs">
@@ -310,8 +407,8 @@ export function WatermarkTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
-                            Apply & Download
+                            <Droplets size={18} />
+                            Apply Watermark
                         </>
                     )}
                 </button>

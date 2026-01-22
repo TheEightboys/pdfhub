@@ -5,9 +5,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { FileOutput, Check, Download, Loader2 } from 'lucide-react';
+import { FileOutput, Check, Loader2, Download, RefreshCw, FileText, Eye } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { downloadPDF } from '../../utils/pdfHelpers';
+import { downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import './Tools.css';
 
 // Lightweight placeholder - no PDF rendering
@@ -23,19 +23,26 @@ const getPlaceholder = (pageNum: number) =>
     `)}`;
 
 export function ExtractPagesTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [selectedPages, setSelectedPages] = useState<number[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [isComplete, setIsComplete] = useState(false);
+
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [extractedPageCount, setExtractedPageCount] = useState(0);
+    const [originalPageCount, setOriginalPageCount] = useState(0);
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
 
     // Reset when document changes
     useEffect(() => {
-        setSelectedPages([]);
-        setIsComplete(false);
-    }, [activeDocument?.id]);
+        if (!isPreviewReady) {
+            setSelectedPages([]);
+        }
+    }, [activeDocument?.id, isPreviewReady]);
 
     const togglePage = useCallback((pageNum: number) => {
         setSelectedPages(prev =>
@@ -66,11 +73,9 @@ export function ExtractPagesTool() {
         setLoading(true, 'Extracting pages...');
 
         try {
-            // Load the PDF
             const pdfDoc = await PDFDocument.load(activeDocument.arrayBuffer.slice(0));
             const newPdf = await PDFDocument.create();
 
-            // Copy selected pages
             for (const pageNum of selectedPages) {
                 const [copiedPage] = await newPdf.copyPages(pdfDoc, [pageNum - 1]);
                 newPdf.addPage(copiedPage);
@@ -78,13 +83,24 @@ export function ExtractPagesTool() {
 
             const pdfBytes = await newPdf.save();
             const fileName = activeDocument.name.replace('.pdf', '_extracted.pdf');
-            downloadPDF(pdfBytes, fileName);
 
-            setIsComplete(true);
+            setResultData(pdfBytes);
+            setResultFileName(fileName);
+            setExtractedPageCount(selectedPages.length);
+            setOriginalPageCount(activeDocument.pageCount);
+
+            // Load extracted PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(pdfBytes).buffer], { type: 'application/pdf' });
+            const extractedFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(extractedFile);
+            loadDocument(doc);
+
+            setIsPreviewReady(true);
+
             addToast({
                 type: 'success',
-                title: 'Pages extracted!',
-                message: `${selectedPages.length} pages saved to ${fileName}`,
+                title: 'Extraction complete!',
+                message: 'Preview is now showing in the viewer.',
             });
         } catch (error) {
             console.error('Extraction failed:', error);
@@ -97,6 +113,32 @@ export function ExtractPagesTool() {
             setIsProcessing(false);
             setLoading(false);
         }
+    };
+
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setIsPreviewReady(false);
+        setSelectedPages([]);
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
     if (!activeDocument) {
@@ -113,37 +155,68 @@ export function ExtractPagesTool() {
         );
     }
 
-    if (isComplete) {
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData) {
         return (
             <div className="tool-panel">
-                <div className="tool-header">
-                    <h2 className="tool-title">Extract Pages</h2>
-                    <p className="tool-description">Pages extracted successfully</p>
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Extracted Pages</span>
                 </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Extraction Complete</h2>
+                    <p className="tool-description">
+                        Review the extracted pages in the viewer, then download when ready.
+                    </p>
+                </div>
+
                 <div className="tool-content">
-                    <div className="success-result">
-                        <div className="success-icon">
-                            <Check size={48} />
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
                         </div>
-                        <h3>Extraction Complete!</h3>
-                        <p>{selectedPages.length} pages have been extracted and downloaded.</p>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The extracted PDF is now showing in the viewer.</p>
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(resultData.length)}</span>
+                        </div>
+                    </div>
+
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{extractedPageCount}</span>
+                            <span className="stat-label">Pages Extracted</span>
+                        </div>
+                        <div className="preview-stat">
+                            <span className="stat-value">{originalPageCount}</span>
+                            <span className="stat-label">Original Pages</span>
+                        </div>
                     </div>
                 </div>
+
                 <div className="tool-footer">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            setIsComplete(false);
-                            setSelectedPages([]);
-                        }}
-                    >
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
                         Extract More
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
                     </button>
                 </div>
             </div>
         );
     }
 
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -154,7 +227,6 @@ export function ExtractPagesTool() {
             </div>
 
             <div className="tool-content">
-                {/* Quick Actions */}
                 <div className="tool-section">
                     <div className="quick-actions">
                         <button className="btn btn-ghost btn-sm" onClick={selectAll}>
@@ -226,7 +298,7 @@ export function ExtractPagesTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
+                            <FileOutput size={18} />
                             <span>Extract Pages</span>
                         </>
                     )}

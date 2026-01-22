@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { Dropzone } from '../UI/Dropzone';
-import { mergePDFs, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
+import { mergePDFs, loadPDF, downloadPDF } from '../../utils/pdfHelpers';
 import {
     FileText,
     GripVertical,
@@ -15,8 +15,11 @@ import {
     ChevronUp,
     ChevronDown,
     Loader2,
-    Download,
     Combine,
+    Download,
+    Check,
+    RefreshCw,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -35,18 +38,20 @@ export function MergePDFTool() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [draggedItem, setDraggedItem] = useState<string | null>(null);
     const [activeDocAdded, setActiveDocAdded] = useState(false);
-    
-    // Merged result state (for download button)
+
+    // Result state - PREVIEW_READY state
     const [mergedData, setMergedData] = useState<Uint8Array | null>(null);
     const [mergedFileName, setMergedFileName] = useState('');
+    const [mergedFileCount, setMergedFileCount] = useState(0);
+    const [mergedPageCount, setMergedPageCount] = useState(0);
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
 
     // Auto-add the currently opened document when the tool opens
     useEffect(() => {
-        if (activeDocument && !activeDocAdded) {
-            // Create a File object from the activeDocument's arrayBuffer
+        if (activeDocument && !activeDocAdded && !isPreviewReady) {
             const blob = new Blob([activeDocument.arrayBuffer], { type: 'application/pdf' });
             const file = new File([blob], activeDocument.name, { type: 'application/pdf' });
-            
+
             setFiles([{
                 id: `active-${Date.now()}`,
                 file,
@@ -54,7 +59,7 @@ export function MergePDFTool() {
             }]);
             setActiveDocAdded(true);
         }
-    }, [activeDocument, activeDocAdded]);
+    }, [activeDocument, activeDocAdded, isPreviewReady]);
 
     const handleFilesAccepted = useCallback(async (newFiles: File[]) => {
         const fileItems: FileItem[] = [];
@@ -147,27 +152,28 @@ export function MergePDFTool() {
             const totalPages = files.reduce((sum, f) => sum + (f.pageCount || 0), 0);
             const fileName = `merged_${files.length}_files_${totalPages}_pages.pdf`;
 
-            // Store merged data for download button
+            // Store merged data
             setMergedData(mergedBytes);
             setMergedFileName(fileName);
+            setMergedFileCount(files.length);
+            setMergedPageCount(totalPages);
 
-            // Create a File object and load into editor
+            // CRITICAL: Load merged PDF into the main viewer for preview
             const blob = new Blob([new Uint8Array(mergedBytes).buffer], { type: 'application/pdf' });
             const mergedFile = new File([blob], fileName, { type: 'application/pdf' });
             const doc = await loadPDF(mergedFile);
-            
-            // Load the merged PDF into the active editor
             loadDocument(doc);
+
+            // Set preview ready state
+            setIsPreviewReady(true);
+            setFiles([]);
 
             addToast({
                 type: 'success',
-                title: 'PDFs merged successfully!',
-                message: `Combined ${files.length} files into ${totalPages} pages. Click Download to save.`,
+                title: 'Merge complete!',
+                message: 'Preview is now showing in the viewer. Review before downloading.',
             });
 
-            // Clear the files list (merged doc is now in editor)
-            setFiles([]);
-            setActiveDocAdded(false);
         } catch (error) {
             console.error('Merge failed:', error);
             addToast({
@@ -187,13 +193,95 @@ export function MergePDFTool() {
             addToast({
                 type: 'success',
                 title: 'Downloaded!',
-                message: `Saved ${mergedFileName}`,
+                message: `Saved as ${mergedFileName}`,
             });
         }
     };
 
+    const handleReset = () => {
+        setMergedData(null);
+        setMergedFileName('');
+        setMergedFileCount(0);
+        setMergedPageCount(0);
+        setIsPreviewReady(false);
+        setActiveDocAdded(false);
+    };
+
     const totalPages = files.reduce((sum, f) => sum + (f.pageCount || 0), 0);
 
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && mergedData) {
+        return (
+            <div className="tool-panel">
+                {/* Preview Banner */}
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Merged PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Merge Complete</h2>
+                    <p className="tool-description">
+                        Review the merged PDF in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The merged PDF is now showing in the viewer. Scroll through pages to verify the result.</p>
+                        </div>
+                    </div>
+
+                    {/* File Card */}
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{mergedFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(mergedData.length)}</span>
+                        </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{mergedFileCount}</span>
+                            <span className="stat-label">Files Merged</span>
+                        </div>
+                        <div className="preview-stat">
+                            <span className="stat-value">{mergedPageCount}</span>
+                            <span className="stat-label">Total Pages</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Merge More PDFs
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -311,7 +399,7 @@ export function MergePDFTool() {
                                 title="Add more files to enable merge"
                             >
                                 <Combine size={18} />
-                                Merge
+                                Merge PDFs
                             </button>
                         </div>
                     ) : (
@@ -328,27 +416,11 @@ export function MergePDFTool() {
                             ) : (
                                 <>
                                     <Combine size={18} />
-                                    Merge
+                                    Merge PDFs
                                 </>
                             )}
                         </button>
                     )}
-                </div>
-            )}
-
-            {/* Show download button when merge is complete */}
-            {mergedData && files.length === 0 && (
-                <div className="tool-footer">
-                    <div className="tool-summary">
-                        <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Merged successfully!</span>
-                    </div>
-                    <button
-                        className="btn btn-primary btn-lg"
-                        onClick={handleDownload}
-                    >
-                        <Download size={18} />
-                        Download Merged PDF
-                    </button>
                 </div>
             )}
         </div>

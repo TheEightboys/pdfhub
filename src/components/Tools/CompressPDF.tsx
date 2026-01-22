@@ -4,14 +4,17 @@
 
 import { useState } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { compressPDF, downloadPDF } from '../../utils/pdfHelpers';
+import { compressPDF, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import { CompressionOptions } from '../../types';
 import {
-    Download,
     Loader2,
     Minimize2,
     FileText,
     ArrowRight,
+    Download,
+    RefreshCw,
+    Check,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -23,8 +26,16 @@ const compressionPresets: { id: CompressionOptions['level']; name: string; desc:
     { id: 'custom', name: 'Custom', desc: 'Set target size', reduction: 'User defined' },
 ];
 
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export function CompressPDFTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
@@ -32,8 +43,13 @@ export function CompressPDFTool() {
     const [targetSizeMB, setTargetSizeMB] = useState<number>(1);
     const [removeMetadata, setRemoveMetadata] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [result, setResult] = useState<{ originalSize: number; newSize: number } | null>(null);
     const [progress, setProgress] = useState(0);
+
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [compressionResult, setCompressionResult] = useState<{ originalSize: number; newSize: number } | null>(null);
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
 
     const handleCompress = async () => {
         if (!activeDocument) return;
@@ -45,7 +61,7 @@ export function CompressPDFTool() {
             const options: CompressionOptions = {
                 level,
                 targetSizeMB: level === 'custom' ? targetSizeMB : undefined,
-                imageQuality: level === 'extreme' ? 30 : level === 'high' ? 40 : level === 'medium' ? 60 : 80, // Fallback defaults, overridden in helper
+                imageQuality: level === 'extreme' ? 30 : level === 'high' ? 40 : level === 'medium' ? 60 : 80,
                 removeMetadata,
                 removeBookmarks: false,
                 linearize: true,
@@ -59,18 +75,25 @@ export function CompressPDFTool() {
 
             const originalSize = activeDocument.arrayBuffer.byteLength;
             const newSize = compressedBytes.length;
-
-            setResult({ originalSize, newSize });
-
             const fileName = activeDocument.name.replace('.pdf', '_compressed.pdf');
-            downloadPDF(compressedBytes, fileName);
+
+            setResultData(compressedBytes);
+            setResultFileName(fileName);
+            setCompressionResult({ originalSize, newSize });
+
+            // Load compressed PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(compressedBytes).buffer], { type: 'application/pdf' });
+            const compressedFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(compressedFile);
+            loadDocument(doc);
+
+            setIsPreviewReady(true);
 
             const reduction = ((1 - newSize / originalSize) * 100).toFixed(1);
-
             addToast({
                 type: 'success',
-                title: 'PDF compressed!',
-                message: `Reduced by ${reduction}% (${formatBytes(originalSize)} → ${formatBytes(newSize)})`,
+                title: 'Compression complete!',
+                message: `Reduced by ${reduction}%. Preview is showing in the viewer.`,
             });
         } catch (error) {
             console.error('Compression failed:', error);
@@ -86,6 +109,24 @@ export function CompressPDFTool() {
         }
     };
 
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setCompressionResult(null);
+        setIsPreviewReady(false);
+    };
+
     if (!activeDocument) {
         return (
             <div className="tool-panel">
@@ -98,12 +139,75 @@ export function CompressPDFTool() {
         );
     }
 
-    // Default target size logic (initially set to 50% of current)
-    if (activeDocument && level === 'custom' && targetSizeMB === 1 && activeDocument.arrayBuffer.byteLength > 0) {
-        // Only if user hasn't touched it, maybe set intelligent default? 
-        // For now 1MB default is safe.
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData && compressionResult) {
+        const reduction = ((1 - compressionResult.newSize / compressionResult.originalSize) * 100).toFixed(1);
+
+        return (
+            <div className="tool-panel">
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Compressed PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Compression Complete</h2>
+                    <p className="tool-description">
+                        Review the compressed PDF in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The compressed PDF is now showing in the viewer. File size reduced by {reduction}%.</p>
+                        </div>
+                    </div>
+
+                    {/* Compression Stats */}
+                    <div className="compress-result" style={{ marginBottom: '20px' }}>
+                        <div className="compress-result-item">
+                            <span className="result-label">Original</span>
+                            <span className="result-value">{formatBytes(compressionResult.originalSize)}</span>
+                        </div>
+                        <ArrowRight size={20} className="result-arrow" />
+                        <div className="compress-result-item">
+                            <span className="result-label">Compressed</span>
+                            <span className="result-value success">{formatBytes(compressionResult.newSize)}</span>
+                        </div>
+                        <div className="compress-result-savings">
+                            -{reduction}%
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatBytes(resultData.length)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Compress Again
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
     }
 
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -114,7 +218,6 @@ export function CompressPDFTool() {
             </div>
 
             <div className="tool-content">
-                {/* File Info */}
                 <div className="tool-section">
                     <div className="compress-file-info">
                         <FileText size={32} className="compress-file-icon" />
@@ -125,7 +228,6 @@ export function CompressPDFTool() {
                     </div>
                 </div>
 
-                {/* Compression Level */}
                 <div className="tool-section">
                     <h4 className="section-title">Compression Level</h4>
                     <div className="compression-levels">
@@ -171,7 +273,6 @@ export function CompressPDFTool() {
                     )}
                 </div>
 
-                {/* Options */}
                 <div className="tool-section">
                     <h4 className="section-title">Options</h4>
                     <label className="checkbox-option">
@@ -183,26 +284,6 @@ export function CompressPDFTool() {
                         <span className="checkbox-label">Remove metadata</span>
                     </label>
                 </div>
-
-                {/* Result */}
-                {result && (
-                    <div className="tool-section">
-                        <div className="compress-result">
-                            <div className="compress-result-item">
-                                <span className="result-label">Original</span>
-                                <span className="result-value">{formatBytes(result.originalSize)}</span>
-                            </div>
-                            <ArrowRight size={20} className="result-arrow" />
-                            <div className="compress-result-item">
-                                <span className="result-label">Compressed</span>
-                                <span className="result-value success">{formatBytes(result.newSize)}</span>
-                            </div>
-                            <div className="compress-result-savings">
-                                -{((1 - result.newSize / result.originalSize) * 100).toFixed(1)}%
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
 
             <div className="tool-footer">
@@ -248,20 +329,12 @@ export function CompressPDFTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
-                            Compress & Download
+                            <Minimize2 size={18} />
+                            Compress PDF
                         </>
                     )}
                 </button>
             </div>
         </div>
     );
-}
-
-function formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }

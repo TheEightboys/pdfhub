@@ -5,13 +5,16 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { rotatePages, downloadPDF } from '../../utils/pdfHelpers';
+import { rotatePages, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import {
-    Download,
     Loader2,
     RotateCcw,
     RotateCw,
     Check,
+    Download,
+    RefreshCw,
+    FileText,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -29,7 +32,7 @@ const getPlaceholder = (pageNum: number, rotation: number = 0) =>
     `)}`;
 
 export function RotatePagesTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
@@ -37,9 +40,14 @@ export function RotatePagesTool() {
     const [localRotations, setLocalRotations] = useState<Record<number, number>>({});
     const [selectedPages, setSelectedPages] = useState<number[]>([]);
 
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
+
     // Initialize rotations from document
     useEffect(() => {
-        if (activeDocument) {
+        if (activeDocument && !isPreviewReady) {
             const rotations: Record<number, number> = {};
             activeDocument.pages.forEach(page => {
                 rotations[page.pageNumber] = page.rotation;
@@ -47,7 +55,7 @@ export function RotatePagesTool() {
             setLocalRotations(rotations);
             setSelectedPages([]);
         }
-    }, [activeDocument?.id]);
+    }, [activeDocument?.id, isPreviewReady]);
 
     const togglePageSelection = useCallback((pageNumber: number) => {
         setSelectedPages(prev =>
@@ -113,14 +121,23 @@ export function RotatePagesTool() {
             }));
 
             const rotatedBytes = await rotatePages(activeDocument.arrayBuffer.slice(0), pageRotations);
-
             const fileName = activeDocument.name.replace('.pdf', '_rotated.pdf');
-            downloadPDF(rotatedBytes, fileName);
+
+            setResultData(rotatedBytes);
+            setResultFileName(fileName);
+
+            // Load rotated PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(rotatedBytes).buffer], { type: 'application/pdf' });
+            const rotatedFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(rotatedFile);
+            loadDocument(doc);
+
+            setIsPreviewReady(true);
 
             addToast({
                 type: 'success',
-                title: 'Pages rotated!',
-                message: `Saved to ${fileName}`,
+                title: 'Rotation complete!',
+                message: 'Preview is now showing in the viewer.',
             });
         } catch (error) {
             console.error('Rotation failed:', error);
@@ -135,6 +152,38 @@ export function RotatePagesTool() {
         }
     };
 
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setIsPreviewReady(false);
+        if (activeDocument) {
+            const rotations: Record<number, number> = {};
+            activeDocument.pages.forEach(page => {
+                rotations[page.pageNumber] = page.rotation;
+            });
+            setLocalRotations(rotations);
+        }
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     if (!activeDocument) {
         return (
             <div className="tool-panel">
@@ -147,6 +196,64 @@ export function RotatePagesTool() {
         );
     }
 
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData) {
+        return (
+            <div className="tool-panel">
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Rotated PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Rotation Complete</h2>
+                    <p className="tool-description">
+                        Review the rotated pages in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The rotated PDF is now showing in the viewer.</p>
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(resultData.length)}</span>
+                        </div>
+                    </div>
+
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{activeDocument.pageCount}</span>
+                            <span className="stat-label">Total Pages</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Rotate More
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -157,7 +264,6 @@ export function RotatePagesTool() {
             </div>
 
             <div className="tool-content">
-                {/* Quick Actions */}
                 <div className="tool-section">
                     <div className="quick-actions">
                         <button className="btn btn-ghost btn-sm" onClick={selectAll}>
@@ -177,7 +283,6 @@ export function RotatePagesTool() {
                     </div>
                 </div>
 
-                {/* Page Grid */}
                 <div className="tool-section">
                     <h3 className="section-title">
                         {selectedPages.length > 0 ? `${selectedPages.length} pages selected` : 'All pages'}
@@ -262,8 +367,8 @@ export function RotatePagesTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
-                            Apply & Download
+                            <RotateCw size={18} />
+                            Apply Rotations
                         </>
                     )}
                 </button>

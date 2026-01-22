@@ -5,12 +5,15 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { splitPDF, downloadPDF } from '../../utils/pdfHelpers';
+import { splitPDF, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import {
-    Download,
     Loader2,
-    Check,
     Scissors,
+    Check,
+    Download,
+    RefreshCw,
+    FileText,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -29,7 +32,7 @@ const getPlaceholder = (pageNum: number) =>
     `)}`;
 
 export function SplitPDFTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
@@ -40,13 +43,20 @@ export function SplitPDFTool() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [localSelectedPages, setLocalSelectedPages] = useState<number[]>([]);
 
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [resultPageCount, setResultPageCount] = useState(0);
+    const [originalPageCount, setOriginalPageCount] = useState(0);
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
+
     // Update range end when document changes
     useEffect(() => {
-        if (activeDocument) {
+        if (activeDocument && !isPreviewReady) {
             setRangeEnd(activeDocument.pageCount);
             setLocalSelectedPages([]);
         }
-    }, [activeDocument?.id]);
+    }, [activeDocument?.id, isPreviewReady]);
 
     const togglePageSelection = useCallback((pageNumber: number) => {
         setLocalSelectedPages(prev =>
@@ -112,12 +122,25 @@ export function SplitPDFTool() {
         try {
             const splitBytes = await splitPDF(activeDocument.arrayBuffer.slice(0), pagesToSplit);
             const fileName = activeDocument.name.replace('.pdf', '_split.pdf');
-            downloadPDF(splitBytes, fileName);
+
+            // Store result
+            setResultData(splitBytes);
+            setResultFileName(fileName);
+            setResultPageCount(pagesToSplit.length);
+            setOriginalPageCount(activeDocument.pageCount);
+
+            // Load split PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(splitBytes).buffer], { type: 'application/pdf' });
+            const splitFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(splitFile);
+            loadDocument(doc);
+
+            setIsPreviewReady(true);
 
             addToast({
                 type: 'success',
-                title: 'PDF split successfully!',
-                message: `Created new PDF with ${pagesToSplit.length} pages`,
+                title: 'Split complete!',
+                message: 'Preview is now showing in the viewer.',
             });
         } catch (error) {
             console.error('Split failed:', error);
@@ -132,6 +155,33 @@ export function SplitPDFTool() {
         }
     };
 
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setResultPageCount(0);
+        setIsPreviewReady(false);
+        setLocalSelectedPages([]);
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     if (!activeDocument) {
         return (
             <div className="tool-panel">
@@ -144,6 +194,68 @@ export function SplitPDFTool() {
         );
     }
 
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData) {
+        return (
+            <div className="tool-panel">
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Split PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Split Complete</h2>
+                    <p className="tool-description">
+                        Review the extracted pages in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The split PDF is now showing in the viewer. Scroll through pages to verify the result.</p>
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(resultData.length)}</span>
+                        </div>
+                    </div>
+
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{resultPageCount}</span>
+                            <span className="stat-label">Pages Extracted</span>
+                        </div>
+                        <div className="preview-stat">
+                            <span className="stat-value">{originalPageCount}</span>
+                            <span className="stat-label">Original Pages</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Split More Pages
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== NORMAL STATE ==========
     return (
         <div className="tool-panel">
             <div className="tool-header">
@@ -154,7 +266,6 @@ export function SplitPDFTool() {
             </div>
 
             <div className="tool-content">
-                {/* Split Mode */}
                 <div className="tool-section">
                     <h3 className="section-title">Split Method</h3>
                     <div className="mode-tabs">
@@ -179,7 +290,6 @@ export function SplitPDFTool() {
                     </div>
                 </div>
 
-                {/* Mode-specific UI */}
                 {mode === 'select' && (
                     <div className="tool-section">
                         <div className="quick-actions">
@@ -296,8 +406,8 @@ export function SplitPDFTool() {
                         </>
                     ) : (
                         <>
-                            <Download size={18} />
-                            Split & Download
+                            <Scissors size={18} />
+                            Split PDF
                         </>
                     )}
                 </button>

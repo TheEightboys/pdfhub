@@ -5,11 +5,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useApp, useToast } from '../../store/appStore';
-import { deletePages, downloadPDF } from '../../utils/pdfHelpers';
+import { deletePages, downloadPDF, loadPDF } from '../../utils/pdfHelpers';
 import {
     Trash2,
     AlertTriangle,
     Loader2,
+    Download,
+    RefreshCw,
+    FileText,
+    Check,
+    Eye,
 } from 'lucide-react';
 import './Tools.css';
 
@@ -26,17 +31,26 @@ const getPlaceholder = (pageNum: number) =>
     `)}`;
 
 export function DeletePagesTool() {
-    const { state, setLoading } = useApp();
+    const { state, setLoading, loadDocument } = useApp();
     const { addToast } = useToast();
     const { activeDocument } = state;
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [pagesToDelete, setPagesToDelete] = useState<number[]>([]);
 
+    // Result state - PREVIEW_READY
+    const [resultData, setResultData] = useState<Uint8Array | null>(null);
+    const [resultFileName, setResultFileName] = useState('');
+    const [deletedCount, setDeletedCount] = useState(0);
+    const [remainingCount, setRemainingCount] = useState(0);
+    const [isPreviewReady, setIsPreviewReady] = useState(false);
+
     // Reset when document changes
     useEffect(() => {
-        setPagesToDelete([]);
-    }, [activeDocument?.id]);
+        if (!isPreviewReady) {
+            setPagesToDelete([]);
+        }
+    }, [activeDocument?.id, isPreviewReady]);
 
     const togglePageForDeletion = useCallback((pageNum: number) => {
         setPagesToDelete(prev =>
@@ -48,7 +62,6 @@ export function DeletePagesTool() {
 
     const selectAll = useCallback(() => {
         if (activeDocument && activeDocument.pageCount > 1) {
-            // Select all except the first page for safety
             setPagesToDelete(Array.from({ length: activeDocument.pageCount - 1 }, (_, i) => i + 2));
         }
     }, [activeDocument]);
@@ -60,7 +73,6 @@ export function DeletePagesTool() {
     const handleDelete = async () => {
         if (!activeDocument || pagesToDelete.length === 0) return;
 
-        // Safety check - don't delete all pages
         if (pagesToDelete.length >= activeDocument.pageCount) {
             addToast({
                 type: 'error',
@@ -76,12 +88,24 @@ export function DeletePagesTool() {
         try {
             const result = await deletePages(activeDocument.arrayBuffer.slice(0), pagesToDelete);
             const fileName = activeDocument.name.replace('.pdf', '_modified.pdf');
-            downloadPDF(result, fileName);
+
+            setResultData(result);
+            setResultFileName(fileName);
+            setDeletedCount(pagesToDelete.length);
+            setRemainingCount(activeDocument.pageCount - pagesToDelete.length);
+
+            // Load modified PDF into viewer for preview
+            const blob = new Blob([new Uint8Array(result).buffer], { type: 'application/pdf' });
+            const modifiedFile = new File([blob], fileName, { type: 'application/pdf' });
+            const doc = await loadPDF(modifiedFile);
+            loadDocument(doc);
+
+            setIsPreviewReady(true);
 
             addToast({
                 type: 'success',
-                title: 'Pages deleted!',
-                message: `Removed ${pagesToDelete.length} pages. New PDF has ${activeDocument.pageCount - pagesToDelete.length} pages.`,
+                title: 'Deletion complete!',
+                message: 'Preview is now showing in the viewer.',
             });
         } catch (error) {
             console.error('Delete failed:', error);
@@ -96,6 +120,33 @@ export function DeletePagesTool() {
         }
     };
 
+    const handleDownload = () => {
+        if (resultData && resultFileName) {
+            downloadPDF(resultData, resultFileName);
+            addToast({
+                type: 'success',
+                title: 'Downloaded!',
+                message: `Saved as ${resultFileName}`,
+            });
+        }
+    };
+
+    const handleReset = () => {
+        setResultData(null);
+        setResultFileName('');
+        setIsPreviewReady(false);
+        setPagesToDelete([]);
+        setDeletedCount(0);
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
     if (!activeDocument) {
         return (
             <div className="tool-panel">
@@ -108,6 +159,68 @@ export function DeletePagesTool() {
         );
     }
 
+    // ========== PREVIEW_READY STATE ==========
+    if (isPreviewReady && resultData) {
+        return (
+            <div className="tool-panel">
+                <div className="preview-banner">
+                    <Eye size={18} />
+                    <span>Preview: Modified PDF</span>
+                </div>
+
+                <div className="tool-header">
+                    <h2 className="tool-title">Deletion Complete</h2>
+                    <p className="tool-description">
+                        Review the modified PDF in the viewer, then download when ready.
+                    </p>
+                </div>
+
+                <div className="tool-content">
+                    <div className="preview-info">
+                        <div className="preview-info-icon">
+                            <Check size={32} strokeWidth={2.5} />
+                        </div>
+                        <div className="preview-info-text">
+                            <h3>Ready for Download</h3>
+                            <p>The modified PDF is now showing in the viewer.</p>
+                        </div>
+                    </div>
+
+                    <div className="download-result-file">
+                        <FileText size={24} />
+                        <div className="download-result-file-info">
+                            <span className="download-result-filename">{resultFileName}</span>
+                            <span className="download-result-filesize">{formatFileSize(resultData.length)}</span>
+                        </div>
+                    </div>
+
+                    <div className="preview-stats">
+                        <div className="preview-stat">
+                            <span className="stat-value">{deletedCount}</span>
+                            <span className="stat-label">Deleted</span>
+                        </div>
+                        <div className="preview-stat">
+                            <span className="stat-value">{remainingCount}</span>
+                            <span className="stat-label">Remaining</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tool-footer">
+                    <button className="btn btn-secondary" onClick={handleReset}>
+                        <RefreshCw size={16} />
+                        Delete More
+                    </button>
+                    <button className="btn btn-primary btn-lg" onClick={handleDownload}>
+                        <Download size={18} />
+                        Download PDF
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ========== NORMAL STATE ==========
     const pagesRemaining = activeDocument.pageCount - pagesToDelete.length;
 
     return (
@@ -120,7 +233,6 @@ export function DeletePagesTool() {
             </div>
 
             <div className="tool-content">
-                {/* Warning */}
                 {pagesToDelete.length > 0 && (
                     <div className="tool-section">
                         <div className="warning-box">
@@ -133,7 +245,6 @@ export function DeletePagesTool() {
                     </div>
                 )}
 
-                {/* Quick Actions */}
                 <div className="tool-section">
                     <div className="quick-actions">
                         <button className="btn btn-ghost btn-sm" onClick={selectAll}>
@@ -145,7 +256,6 @@ export function DeletePagesTool() {
                     </div>
                 </div>
 
-                {/* Page Grid */}
                 <div className="tool-section">
                     <h3 className="section-title">Click pages to select for deletion</h3>
 
@@ -204,7 +314,7 @@ export function DeletePagesTool() {
                     ) : (
                         <>
                             <Trash2 size={18} />
-                            Delete & Download
+                            Delete Pages
                         </>
                     )}
                 </button>
