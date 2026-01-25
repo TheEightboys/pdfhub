@@ -75,7 +75,7 @@ export function Header({ onOpenFile }: HeaderProps) {
             });
         }
     };
-    
+
     // Get security status
     const securityRisk = activeDocument
         ? PDFSecurityScanner.getOverallRisk(activeDocument.securityStatus.threats)
@@ -109,7 +109,7 @@ export function Header({ onOpenFile }: HeaderProps) {
 
                 <div className="header-brand">
                     <div className="header-logo">
-                        <img src="/logo-white.svg" alt="PDF Editor Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                        <img src="/logo.png" alt="PDF Editor Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
                     </div>
                     <div className="header-brand-text">
                         <span className="header-title">PDF Editor</span>
@@ -126,9 +126,9 @@ export function Header({ onOpenFile }: HeaderProps) {
                             {activeDocument.name}
                         </span>
                         <div className="header-save-status">
-                             {state.saveStatus === 'saving' && <span className="status-saving">Saving...</span>}
-                             {state.saveStatus === 'saved' && <span className="status-saved">Saved</span>}
-                             {state.saveStatus === 'unsaved' && <span className="status-unsaved">Unsaved changes</span>}
+                            {state.saveStatus === 'saving' && <span className="status-saving">Saving...</span>}
+                            {state.saveStatus === 'saved' && <span className="status-saved">Saved</span>}
+                            {state.saveStatus === 'unsaved' && <span className="status-unsaved">Unsaved changes</span>}
                         </div>
                         <span className="header-document-pages">
                             {activeDocument.pageCount} page{activeDocument.pageCount !== 1 ? 's' : ''}
@@ -181,8 +181,8 @@ export function Header({ onOpenFile }: HeaderProps) {
                 <div className="header-divider" />
 
                 <div className="header-utilities">
-                    <button 
-                        className="header-icon-btn" 
+                    <button
+                        className="header-icon-btn"
                         onClick={() => setIsProductNavOpen(true)}
                         title="Famral Products"
                     >

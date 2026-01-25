@@ -66,7 +66,7 @@ function AppContent() {
 
         try {
             const doc = await loadPDF(file);
-            
+
             // Load document directly without security checks
             loadDocument(doc);
             setActiveTool(null); // Clear any active tool
@@ -175,14 +175,14 @@ function AppContent() {
             <div className={`app-main editor-layout ${activeTool && activeDocument ? 'tool-active' : ''}`}>
                 {/* Left - PDF Viewer or compact Upload Prompt */}
                 <div className="app-content">
-                {activeDocument ? (
+                    {activeDocument ? (
                         <PDFViewer />
                     ) : (
                         /* Check if a standalone tool is active that doesn't need a PDF */
                         (() => {
                             const standaloneTools = ['merge', 'image-to-pdf', 'ppt-to-pdf'];
                             const isStandaloneTool = activeTool && standaloneTools.includes(activeTool);
-                            
+
                             if (isStandaloneTool) {
                                 // Show the tool panel in the main content area
                                 return (
@@ -191,10 +191,10 @@ function AppContent() {
                                     </div>
                                 );
                             }
-                            
+
                             // Show compact upload prompt
                             return (
-                                <div 
+                                <div
                                     className={`editor-upload-prompt compact ${isDragging ? 'dragging' : ''}`}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -267,7 +267,7 @@ function AppContent() {
                 <div className="loading-overlay">
                     <div className="loading-content">
                         <div className="loading-logo">
-                            <img src="/logo.svg" alt="PDF Editor" style={{ width: 64, height: 64, objectFit: 'contain' }} />
+                            <img src="/logo.png" alt="PDF Editor" style={{ width: 64, height: 64, objectFit: 'contain' }} />
                         </div>
 
                         {/* Windows-style bouncing dots */}
