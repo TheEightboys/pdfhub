@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp, useToast } from '../../store/appStore';
 import { ToolId } from '../../types';
 import {
-    Upload, FileText, Save, Undo2, Redo2,
+    Upload, Save, Undo2, Redo2,
     Combine, Split, RotateCcw, Trash2, ArrowUpDown, Copy, FileOutput,
     Minimize2, Image, FileImage, FileType, FileSpreadsheet, Presentation,
     Type, ImagePlus, Crop, Maximize, Eraser,
@@ -346,7 +346,7 @@ export function RibbonToolbar({ onOpenFile }: RibbonToolbarProps) {
             {/* Header Row: Logo, Doc Name, Actions */}
             <div className="ribbon-header">
                 <div className="ribbon-brand">
-                    <FileText size={16} />
+                    <img src="/logo.png" alt="PDF Editor" style={{ width: 18, height: 18, objectFit: 'contain' }} />
                     <span className="ribbon-title">PDF Editor</span>
                 </div>
                 <input
